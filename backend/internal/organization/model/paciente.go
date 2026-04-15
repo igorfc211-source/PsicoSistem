@@ -9,8 +9,9 @@ import (
 
 //model dos pacientes
 type Patient struct {
-	ID            string        `json:"id"`						//está em string pois pode ser o cpf
-	UserID        uuid.UUID        `json:"user_id"`		         //por qual usuário pertence
+	ID        	  uuid.UUID `json:"id"`
+	Document  	  string    `json:"document"`
+	UserID        uuid.UUID       `json:"user_id"`		         //por qual usuário pertence
 	Sex 		  *string  			`json:"sex"`
 	Name          string          `json:"name"`					//nome
 	BirthDate     *time.Time      `json:"birth_date,omitempty"` //data de aniversário
