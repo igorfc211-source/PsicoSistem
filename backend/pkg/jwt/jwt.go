@@ -5,36 +5,54 @@ import (
 	"time"
 
 	jwtlib "github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 )
 
+// CustomClaims carrega o contexto necessário para segurança multi-tenant.
 type CustomClaims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
+	UserID   string `json:"user_id"`
+	TenantID string `json:"tenant_id"`
+	Role     string `json:"role"`
+	Email    string `json:"email"`
+	Type     string `json:"type"`
 	jwtlib.RegisteredClaims
+}
+
+type TokenInput struct {
+	UserID   string
+	TenantID string
+	Role     string
+	Email    string
+	Type     string
 }
 
 type JWTService struct {
 	secretKey []byte
 	issuer    string
+	ttl       time.Duration
 }
 
 func NewJWTService(secret string, issuer string) *JWTService {
 	return &JWTService{
 		secretKey: []byte(secret),
 		issuer:    issuer,
+		ttl:       24 * time.Hour,
 	}
 }
 
-func (j *JWTService) GenerateToken(userID uuid.UUID, email string) (string, error) {
+func (j *JWTService) GenerateToken(input TokenInput) (string, error) {
+	now := time.Now()
 	claims := CustomClaims{
-		UserID: userID,
-		Email:  email,
+		UserID:   input.UserID,
+		TenantID: input.TenantID,
+		Role:     input.Role,
+		Email:    input.Email,
+		Type:     input.Type,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			Issuer:    j.issuer,
-			Subject:   userID.String(),
-			ExpiresAt: jwtlib.NewNumericDate(time.Now().Add(24 * time.Hour)),
-			IssuedAt:  jwtlib.NewNumericDate(time.Now()),
+			Subject:   input.UserID,
+			ExpiresAt: jwtlib.NewNumericDate(now.Add(j.ttl)),
+			IssuedAt:  jwtlib.NewNumericDate(now),
+			NotBefore: jwtlib.NewNumericDate(now),
 		},
 	}
 
@@ -43,14 +61,12 @@ func (j *JWTService) GenerateToken(userID uuid.UUID, email string) (string, erro
 }
 
 func (j *JWTService) ValidateToken(tokenString string) (*CustomClaims, error) {
-	token, err := jwtlib.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwtlib.Token) (interface{}, error) {
-		_, ok := token.Method.(*jwtlib.SigningMethodHMAC)
-		if !ok {
+	token, err := jwtlib.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwtlib.Token) (any, error) {
+		if _, ok := token.Method.(*jwtlib.SigningMethodHMAC); !ok {
 			return nil, errors.New("invalid signing method")
 		}
 		return j.secretKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

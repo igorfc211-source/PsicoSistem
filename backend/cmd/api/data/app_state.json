@@ -1,0 +1,119 @@
+{
+  "plans": {
+    "basico": {
+      "id": "00000000-0000-0000-0000-000000000101",
+      "slug": "basico",
+      "name": "Básico",
+      "price_monthly_cents": 9700,
+      "has_tests_library": false,
+      "has_ai": false,
+      "has_guardian_portal": false,
+      "max_professionals": 3,
+      "max_patients": 100,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z"
+    },
+    "intermediario": {
+      "id": "00000000-0000-0000-0000-000000000102",
+      "slug": "intermediario",
+      "name": "Intermediário",
+      "price_monthly_cents": 14700,
+      "has_tests_library": true,
+      "has_ai": false,
+      "has_guardian_portal": true,
+      "max_professionals": 8,
+      "max_patients": 300,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z"
+    },
+    "premium": {
+      "id": "00000000-0000-0000-0000-000000000103",
+      "slug": "premium",
+      "name": "Premium",
+      "price_monthly_cents": 19700,
+      "has_tests_library": true,
+      "has_ai": true,
+      "has_guardian_portal": true,
+      "max_professionals": 20,
+      "max_patients": 1000,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  },
+  "tenants": {
+    "2dd4b031-0a13-4bb7-b829-4f0c350b8e36": {
+      "id": "2dd4b031-0a13-4bb7-b829-4f0c350b8e36",
+      "name": "Clinica Aurora",
+      "slug": "clinica-aurora",
+      "cnpj": "",
+      "email": "ana@clinica.com",
+      "phone": "19999999999",
+      "status": "active",
+      "created_at": "2026-04-19T14:59:54.7770867-03:00",
+      "updated_at": "2026-04-19T14:59:54.7770867-03:00"
+    },
+    "622d06ea-a106-4b44-97b6-0d7dd70f0e47": {
+      "id": "622d06ea-a106-4b44-97b6-0d7dd70f0e47",
+      "name": "Doutoura Clarissa",
+      "slug": "doutoura-clarissa",
+      "cnpj": "",
+      "email": "igorrr@email.com",
+      "phone": "19999999",
+      "status": "active",
+      "created_at": "2026-04-19T14:50:45.6439948-03:00",
+      "updated_at": "2026-04-19T14:50:45.6439948-03:00"
+    }
+  },
+  "users": {
+    "37eb7222-ed2d-4907-b617-3d7061d5e14e": {
+      "id": "37eb7222-ed2d-4907-b617-3d7061d5e14e",
+      "tenant_id": "2dd4b031-0a13-4bb7-b829-4f0c350b8e36",
+      "name": "Ana Souza",
+      "email": "ana@clinica.com",
+      "password_hash": "$2a$10$MEZNlJ9YlZXJZPsLRCZ8KeB/aZw8B731qpzUhboq5yjERcBbHmeQ2",
+      "role": "owner",
+      "status": "active",
+      "last_login_at": "2026-04-19T15:01:26.0766645-03:00",
+      "created_at": "2026-04-19T14:59:54.7770867-03:00",
+      "updated_at": "2026-04-19T15:01:26.0766645-03:00"
+    },
+    "4360f6d3-e144-44b2-af78-2563ae98aa2a": {
+      "id": "4360f6d3-e144-44b2-af78-2563ae98aa2a",
+      "tenant_id": "622d06ea-a106-4b44-97b6-0d7dd70f0e47",
+      "name": "Igorasa",
+      "email": "igorrr@email.com",
+      "password_hash": "$2a$10$Yu6e9Y8sYipxjiPXJrzebe5BjVe47Mj1pIvYrmoP.byj/rskIQUyK",
+      "role": "owner",
+      "status": "active",
+      "last_login_at": "2026-04-19T14:55:34.2071685-03:00",
+      "created_at": "2026-04-19T14:50:45.6439948-03:00",
+      "updated_at": "2026-04-19T14:55:34.2071685-03:00"
+    }
+  },
+  "subscriptions": {
+    "9782dd7f-4990-45ae-9799-b11b466273a9": {
+      "id": "9782dd7f-4990-45ae-9799-b11b466273a9",
+      "tenant_id": "2dd4b031-0a13-4bb7-b829-4f0c350b8e36",
+      "plan_id": "00000000-0000-0000-0000-000000000101",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 9700,
+      "started_at": "2026-04-19T14:59:54.7770867-03:00",
+      "renewal_at": "2026-05-19T14:59:54.7770867-03:00",
+      "created_at": "2026-04-19T14:59:54.7770867-03:00",
+      "updated_at": "2026-04-19T14:59:54.7770867-03:00"
+    },
+    "a7901998-7f89-4155-8ba2-22fd840e3d94": {
+      "id": "a7901998-7f89-4155-8ba2-22fd840e3d94",
+      "tenant_id": "622d06ea-a106-4b44-97b6-0d7dd70f0e47",
+      "plan_id": "00000000-0000-0000-0000-000000000101",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 9700,
+      "started_at": "2026-04-19T14:50:45.6439948-03:00",
+      "renewal_at": "2026-05-19T14:50:45.6439948-03:00",
+      "created_at": "2026-04-19T14:50:45.6439948-03:00",
+      "updated_at": "2026-04-19T14:50:45.6439948-03:00"
+    }
+  }
+}
