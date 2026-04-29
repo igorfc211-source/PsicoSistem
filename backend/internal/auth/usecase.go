@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"api-on/internal/shared/security"
 	sharederrors "api-on/internal/shared/errors"
+	"api-on/internal/shared/permissions"
+	"api-on/internal/shared/security"
 	sharedvalidator "api-on/internal/shared/validator"
 	"api-on/internal/subscription"
 	"api-on/internal/tenant"
@@ -54,16 +55,41 @@ func (u *Usecase) Register(ctx context.Context, input RegisterInput) (*AuthPaylo
 	if err := sharedvalidator.ValidatePhone(input.Phone); err != nil {
 		return nil, err
 	}
+	if err := sharedvalidator.ValidateCPFOrCNPJ(input.CPFOrCNPJ); err != nil {
+		return nil, err
+	}
+	if !input.PaymentSessionConfirmed {
+		return nil, sharederrors.Invalid("PAYMENT_SESSION_REQUIRED", "payment session must be confirmed before registration")
+	}
+
+	normalizedEmail := sharedvalidator.NormalizeEmail(input.Email)
+	normalizedPhone := sharedvalidator.NormalizePhone(input.Phone)
+	normalizedDocument := sharedvalidator.NormalizeCPFOrCNPJ(input.CPFOrCNPJ)
 
 	plan, err := u.subscriptionRepo.FindPlanBySlug(ctx, strings.ToLower(strings.TrimSpace(input.PlanSlug)))
 	if err != nil {
 		return nil, err
 	}
+	if plan.Slug == "intermediario" && !input.AcceptTrialTerms {
+		return nil, sharederrors.Invalid("TRIAL_TERMS_REQUIRED", "accept trial terms before creating the account")
+	}
 
-	if _, err := u.userRepo.FindByEmail(ctx, input.Email); err == nil {
+	if _, err := u.userRepo.FindByEmail(ctx, normalizedEmail); err == nil {
 		return nil, sharederrors.Conflict("USER_EMAIL_ALREADY_EXISTS", "email already registered")
 	} else if appErr := sharederrors.AsAppError(err); appErr != nil && appErr.Code != "USER_NOT_FOUND" {
 		return nil, err
+	}
+
+	if exists, err := u.tenantRepo.ExistsByCNPJ(ctx, normalizedDocument); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, sharederrors.Conflict("TENANT_DOCUMENT_ALREADY_EXISTS", "cpf_cnpj already registered")
+	}
+
+	if exists, err := u.tenantRepo.ExistsByPhone(ctx, normalizedPhone); err != nil {
+		return nil, err
+	} else if exists {
+		return nil, sharederrors.Conflict("TENANT_PHONE_ALREADY_EXISTS", "phone already registered")
 	}
 
 	passwordHash, err := hash.Generate(input.Password)
@@ -81,8 +107,9 @@ func (u *Usecase) Register(ctx context.Context, input RegisterInput) (*AuthPaylo
 		ID:        uuid.New(),
 		Name:      strings.TrimSpace(input.ClinicName),
 		Slug:      slug,
-		Email:     sharedvalidator.NormalizeEmail(input.Email),
-		Phone:     strings.TrimSpace(input.Phone),
+		CNPJ:      normalizedDocument,
+		Email:     normalizedEmail,
+		Phone:     normalizedPhone,
 		Status:    tenant.StatusActive,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -92,22 +119,30 @@ func (u *Usecase) Register(ctx context.Context, input RegisterInput) (*AuthPaylo
 		ID:           uuid.New(),
 		TenantID:     tenantItem.ID,
 		Name:         strings.TrimSpace(input.Name),
-		Email:        sharedvalidator.NormalizeEmail(input.Email),
+		Email:        normalizedEmail,
 		PasswordHash: passwordHash,
 		Role:         user.RoleOwner,
 		Status:       user.StatusActive,
+		Permissions:  permissions.DefaultForRole(user.RoleOwner),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
 
 	renewalAt := now.AddDate(0, 1, 0)
+	subscriptionStatus := subscription.StatusActive
+	amountMonthly := plan.PriceMonthlyCents
+	if plan.Slug == "intermediario" {
+		subscriptionStatus = subscription.StatusTrialing
+		amountMonthly = 0
+	}
+
 	subscriptionItem := &subscription.Subscription{
 		ID:            uuid.New(),
 		TenantID:      tenantItem.ID,
 		PlanID:        plan.ID,
-		Status:        subscription.StatusActive,
+		Status:        subscriptionStatus,
 		BillingCycle:  "monthly",
-		AmountMonthly: plan.PriceMonthlyCents,
+		AmountMonthly: amountMonthly,
 		StartedAt:     now,
 		RenewalAt:     &renewalAt,
 		CreatedAt:     now,
@@ -138,20 +173,10 @@ func (u *Usecase) Register(ctx context.Context, input RegisterInput) (*AuthPaylo
 	}
 
 	return &AuthPayload{
-		Tenant: tenant.ToResponse(tenantItem),
-		User:   user.ToResponse(userItem),
-		Subscription: &subscription.SummaryResponse{
-			Plan:              plan.Slug,
-			Status:            subscriptionItem.Status,
-			AmountMonthly:     subscriptionItem.AmountMonthly,
-			RenewalAt:         subscriptionItem.RenewalAt,
-			HasTestsLibrary:   plan.HasTestsLibrary,
-			HasAI:             plan.HasAI,
-			HasGuardianPortal: plan.HasGuardianPortal,
-			MaxProfessionals:  plan.MaxProfessionals,
-			MaxPatients:       plan.MaxPatients,
-		},
-		Token: token,
+		Tenant:       tenant.ToResponse(tenantItem),
+		User:         user.ToResponse(userItem),
+		Subscription: u.buildSubscriptionSummary(subscriptionItem, plan),
+		Token:        token,
 	}, nil
 }
 
@@ -195,10 +220,16 @@ func (u *Usecase) Login(ctx context.Context, input LoginInput) (*AuthPayload, er
 		return nil, err
 	}
 
+	subscriptionItem, plan, err := u.subscriptionRepo.GetByTenantID(ctx, userItem.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AuthPayload{
-		Tenant: tenant.ToResponse(tenantItem),
-		User:   user.ToResponse(refreshedUser),
-		Token:  token,
+		Tenant:       tenant.ToResponse(tenantItem),
+		User:         user.ToResponse(refreshedUser),
+		Subscription: u.buildSubscriptionSummary(subscriptionItem, plan),
+		Token:        token,
 	}, nil
 }
 
@@ -222,10 +253,16 @@ func (u *Usecase) Refresh(ctx context.Context, actor security.Identity) (*AuthPa
 		return nil, err
 	}
 
+	subscriptionItem, plan, err := u.subscriptionRepo.GetByTenantID(ctx, actor.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AuthPayload{
-		Tenant: tenant.ToResponse(tenantItem),
-		User:   user.ToResponse(userItem),
-		Token:  token,
+		Tenant:       tenant.ToResponse(tenantItem),
+		User:         user.ToResponse(userItem),
+		Subscription: u.buildSubscriptionSummary(subscriptionItem, plan),
+		Token:        token,
 	}, nil
 }
 
@@ -257,4 +294,29 @@ func (u *Usecase) issueToken(userItem *user.User) (string, error) {
 		return "", sharederrors.Internal("could not generate auth token")
 	}
 	return token, nil
+}
+
+func (u *Usecase) buildSubscriptionSummary(item *subscription.Subscription, plan *subscription.Plan) *subscription.SummaryResponse {
+	if item == nil || plan == nil {
+		return nil
+	}
+
+	var trialEndsAt *time.Time
+	if item.Status == subscription.StatusTrialing {
+		trialEndsAt = item.RenewalAt
+	}
+
+	return &subscription.SummaryResponse{
+		Plan:              plan.Slug,
+		Status:            item.Status,
+		AmountMonthly:     item.AmountMonthly,
+		NextAmountMonthly: plan.PriceMonthlyCents,
+		RenewalAt:         item.RenewalAt,
+		TrialEndsAt:       trialEndsAt,
+		HasTestsLibrary:   plan.HasTestsLibrary,
+		HasAI:             plan.HasAI,
+		HasGuardianPortal: plan.HasGuardianPortal,
+		MaxProfessionals:  plan.MaxProfessionals,
+		MaxPatients:       plan.MaxPatients,
+	}
 }

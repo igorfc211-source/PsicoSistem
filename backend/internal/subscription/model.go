@@ -46,7 +46,9 @@ type SummaryResponse struct {
 	Plan              string     `json:"plan"`
 	Status            string     `json:"status"`
 	AmountMonthly     int64      `json:"amount_monthly"`
+	NextAmountMonthly int64      `json:"next_amount_monthly"`
 	RenewalAt         *time.Time `json:"renewal_at,omitempty"`
+	TrialEndsAt       *time.Time `json:"trial_ends_at,omitempty"`
 	HasTestsLibrary   bool       `json:"has_tests_library"`
 	HasAI             bool       `json:"has_ai"`
 	HasGuardianPortal bool       `json:"has_guardian_portal"`

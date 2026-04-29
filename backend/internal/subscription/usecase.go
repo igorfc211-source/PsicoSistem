@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"context"
+	"time"
 
 	"api-on/internal/shared/security"
 )
@@ -20,11 +21,18 @@ func (u *Usecase) GetCurrent(ctx context.Context, actor security.Identity) (*Sum
 		return nil, err
 	}
 
+	var trialEndsAt *time.Time
+	if subscription.Status == StatusTrialing {
+		trialEndsAt = subscription.RenewalAt
+	}
+
 	return &SummaryResponse{
 		Plan:              plan.Slug,
 		Status:            subscription.Status,
 		AmountMonthly:     subscription.AmountMonthly,
+		NextAmountMonthly: plan.PriceMonthlyCents,
 		RenewalAt:         subscription.RenewalAt,
+		TrialEndsAt:       trialEndsAt,
 		HasTestsLibrary:   plan.HasTestsLibrary,
 		HasAI:             plan.HasAI,
 		HasGuardianPortal: plan.HasGuardianPortal,

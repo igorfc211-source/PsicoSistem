@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sharederrors "api-on/internal/shared/errors"
+	"api-on/internal/shared/permissions"
 
 	"github.com/google/uuid"
 )
@@ -35,15 +36,16 @@ type ListInput struct {
 }
 
 type Response struct {
-	ID          uuid.UUID  `json:"user_id"`
-	TenantID    uuid.UUID  `json:"tenant_id"`
-	Name        string     `json:"name"`
-	Email       string     `json:"email"`
-	Role        string     `json:"role"`
-	Status      string     `json:"status"`
-	LastLoginAt *time.Time `json:"last_login_at,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID                      `json:"user_id"`
+	TenantID    uuid.UUID                      `json:"tenant_id"`
+	Name        string                         `json:"name"`
+	Email       string                         `json:"email"`
+	Role        string                         `json:"role"`
+	Status      string                         `json:"status"`
+	Permissions permissions.AccountPermissions `json:"permissions"`
+	LastLoginAt *time.Time                     `json:"last_login_at,omitempty"`
+	CreatedAt   time.Time                      `json:"created_at"`
+	UpdatedAt   time.Time                      `json:"updated_at"`
 }
 
 type ListMeta struct {
@@ -65,6 +67,7 @@ func ToResponse(item *User) *Response {
 		Email:       item.Email,
 		Role:        item.Role,
 		Status:      item.Status,
+		Permissions: item.Permissions,
 		LastLoginAt: item.LastLoginAt,
 		CreatedAt:   item.CreatedAt,
 		UpdatedAt:   item.UpdatedAt,

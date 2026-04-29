@@ -7,12 +7,15 @@ import (
 )
 
 type RegisterInput struct {
-	ClinicName string `json:"clinic_name"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	Phone      string `json:"phone"`
-	PlanSlug   string `json:"plan_slug"`
+	ClinicName              string `json:"clinic_name"`
+	Name                    string `json:"name"`
+	Email                   string `json:"email"`
+	Password                string `json:"password"`
+	Phone                   string `json:"phone"`
+	CPFOrCNPJ               string `json:"cpf_cnpj"`
+	PlanSlug                string `json:"plan_slug"`
+	PaymentSessionConfirmed bool   `json:"payment_session_confirmed"`
+	AcceptTrialTerms        bool   `json:"accept_trial_terms"`
 }
 
 type LoginInput struct {

@@ -52,6 +52,17 @@
       "created_at": "2026-04-19T14:59:54.7770867-03:00",
       "updated_at": "2026-04-19T14:59:54.7770867-03:00"
     },
+    "60a719f0-6754-428e-8f5e-f1e5b7fa51e6": {
+      "id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",
+      "name": "Igor França Candido",
+      "slug": "igor-fran-a-candido",
+      "cnpj": "",
+      "email": "igorfc211@gmail.com",
+      "phone": "19981923805",
+      "status": "active",
+      "created_at": "2026-04-23T23:00:19.2528255-03:00",
+      "updated_at": "2026-04-23T23:00:19.2528255-03:00"
+    },
     "622d06ea-a106-4b44-97b6-0d7dd70f0e47": {
       "id": "622d06ea-a106-4b44-97b6-0d7dd70f0e47",
       "name": "Doutoura Clarissa",
@@ -62,9 +73,104 @@
       "status": "active",
       "created_at": "2026-04-19T14:50:45.6439948-03:00",
       "updated_at": "2026-04-19T14:50:45.6439948-03:00"
+    },
+    "81405538-2e06-44ae-bf2d-41daf5ff1865": {
+      "id": "81405538-2e06-44ae-bf2d-41daf5ff1865",
+      "name": "Clarigon",
+      "slug": "clarigon",
+      "cnpj": "",
+      "email": "igor@igor.igor",
+      "phone": "19999999999",
+      "status": "active",
+      "created_at": "2026-04-23T22:31:58.2491534-03:00",
+      "updated_at": "2026-04-23T22:31:58.2491534-03:00"
+    },
+    "c9fba423-c3c6-4414-a4f3-f0f3683df80e": {
+      "id": "c9fba423-c3c6-4414-a4f3-f0f3683df80e",
+      "name": "Clarigon",
+      "slug": "clarigon-d4750295",
+      "cnpj": "",
+      "email": "kpokp@igor.igor",
+      "phone": "19999999999",
+      "status": "active",
+      "created_at": "2026-04-23T22:37:39.4606509-03:00",
+      "updated_at": "2026-04-23T22:37:39.4606509-03:00"
+    },
+    "de8be88b-6db8-4eb6-9d89-bd6ddfbebec8": {
+      "id": "de8be88b-6db8-4eb6-9d89-bd6ddfbebec8",
+      "name": "Igor França Candido",
+      "slug": "igor-fran-a-candido-3d8c9cb5",
+      "cnpj": "52998224725",
+      "email": "igorfc@gmail.com",
+      "phone": "12321321313",
+      "status": "active",
+      "created_at": "2026-04-26T17:45:33.323856-03:00",
+      "updated_at": "2026-04-26T17:45:33.323856-03:00"
     }
   },
   "users": {
+    "0149f08a-5d02-4b98-b3d7-f2098751f41e": {
+      "id": "0149f08a-5d02-4b98-b3d7-f2098751f41e",
+      "tenant_id": "81405538-2e06-44ae-bf2d-41daf5ff1865",
+      "name": "Igor",
+      "email": "igor@igor.igor",
+      "password_hash": "$2a$10$fxnxlHl8shravKSGrJbSSeW7Qn7vddI8dnYOPfqyv2lXFmbMk0RO2",
+      "role": "owner",
+      "status": "active",
+      "permissions": {
+        "user_directory": "all",
+        "patients": "all",
+        "services": "all",
+        "calendar": "all",
+        "finance": "all",
+        "ai_history": "all",
+        "plans": "all"
+      },
+      "last_login_at": "2026-04-28T21:34:37.0942592-03:00",
+      "created_at": "2026-04-23T22:31:58.2491534-03:00",
+      "updated_at": "2026-04-28T21:34:37.0942592-03:00"
+    },
+    "0b9415c7-0ba7-4524-8529-47257cb6241c": {
+      "id": "0b9415c7-0ba7-4524-8529-47257cb6241c",
+      "tenant_id": "de8be88b-6db8-4eb6-9d89-bd6ddfbebec8",
+      "name": "jonas",
+      "email": "igorfc@gmail.com",
+      "password_hash": "$2a$10$xTue4MGG3xvf84VBUtDPT.XxAJoEyWfEXWl/557NlQJmw2DkIvvhm",
+      "role": "owner",
+      "status": "active",
+      "permissions": {
+        "user_directory": "all",
+        "patients": "all",
+        "services": "all",
+        "calendar": "all",
+        "finance": "all",
+        "ai_history": "all",
+        "plans": "all"
+      },
+      "created_at": "2026-04-26T17:45:33.323856-03:00",
+      "updated_at": "2026-04-26T17:45:33.323856-03:00"
+    },
+    "1d54d224-1ee8-4b22-af42-c72360eed000": {
+      "id": "1d54d224-1ee8-4b22-af42-c72360eed000",
+      "tenant_id": "c9fba423-c3c6-4414-a4f3-f0f3683df80e",
+      "name": "Igor",
+      "email": "kpokp@igor.igor",
+      "password_hash": "$2a$10$lY3VaKD4jOw7DQc6EPjXa.MiEU.IijN8M7MQzjX0XT/8lvsHm7K26",
+      "role": "owner",
+      "status": "active",
+      "permissions": {
+        "user_directory": "all",
+        "patients": "all",
+        "services": "all",
+        "calendar": "all",
+        "finance": "all",
+        "ai_history": "all",
+        "plans": "all"
+      },
+      "last_login_at": "2026-04-23T22:38:28.5448227-03:00",
+      "created_at": "2026-04-23T22:37:39.4606509-03:00",
+      "updated_at": "2026-04-23T22:38:28.5448227-03:00"
+    },
     "37eb7222-ed2d-4907-b617-3d7061d5e14e": {
       "id": "37eb7222-ed2d-4907-b617-3d7061d5e14e",
       "tenant_id": "2dd4b031-0a13-4bb7-b829-4f0c350b8e36",
@@ -73,6 +179,15 @@
       "password_hash": "$2a$10$MEZNlJ9YlZXJZPsLRCZ8KeB/aZw8B731qpzUhboq5yjERcBbHmeQ2",
       "role": "owner",
       "status": "active",
+      "permissions": {
+        "user_directory": "",
+        "patients": "",
+        "services": "",
+        "calendar": "",
+        "finance": "",
+        "ai_history": "",
+        "plans": ""
+      },
       "last_login_at": "2026-04-19T15:01:26.0766645-03:00",
       "created_at": "2026-04-19T14:59:54.7770867-03:00",
       "updated_at": "2026-04-19T15:01:26.0766645-03:00"
@@ -85,12 +200,66 @@
       "password_hash": "$2a$10$Yu6e9Y8sYipxjiPXJrzebe5BjVe47Mj1pIvYrmoP.byj/rskIQUyK",
       "role": "owner",
       "status": "active",
+      "permissions": {
+        "user_directory": "",
+        "patients": "",
+        "services": "",
+        "calendar": "",
+        "finance": "",
+        "ai_history": "",
+        "plans": ""
+      },
       "last_login_at": "2026-04-19T14:55:34.2071685-03:00",
       "created_at": "2026-04-19T14:50:45.6439948-03:00",
       "updated_at": "2026-04-19T14:55:34.2071685-03:00"
+    },
+    "bc3bfcad-a47b-4b58-851f-b0369bfda260": {
+      "id": "bc3bfcad-a47b-4b58-851f-b0369bfda260",
+      "tenant_id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",
+      "name": "Igor França Candido",
+      "email": "igorfc211@gmail.com",
+      "password_hash": "$2a$10$4yAujfqnVC1nb.SyfQBPCOzI2F4p7FqBhPNJcxNLeysAu2PNn7EAy",
+      "role": "owner",
+      "status": "active",
+      "permissions": {
+        "user_directory": "all",
+        "patients": "all",
+        "services": "all",
+        "calendar": "all",
+        "finance": "all",
+        "ai_history": "all",
+        "plans": "all"
+      },
+      "last_login_at": "2026-04-23T23:00:28.1207994-03:00",
+      "created_at": "2026-04-23T23:00:19.2528255-03:00",
+      "updated_at": "2026-04-23T23:00:28.1207994-03:00"
     }
   },
   "subscriptions": {
+    "569f4a20-860c-4337-9eff-a24e05391be6": {
+      "id": "569f4a20-860c-4337-9eff-a24e05391be6",
+      "tenant_id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",
+      "plan_id": "00000000-0000-0000-0000-000000000102",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 14700,
+      "started_at": "2026-04-23T23:00:19.2528255-03:00",
+      "renewal_at": "2026-05-23T23:00:19.2528255-03:00",
+      "created_at": "2026-04-23T23:00:19.2528255-03:00",
+      "updated_at": "2026-04-23T23:00:19.2528255-03:00"
+    },
+    "5b2922b7-afb7-4c35-bd43-65aa44389550": {
+      "id": "5b2922b7-afb7-4c35-bd43-65aa44389550",
+      "tenant_id": "de8be88b-6db8-4eb6-9d89-bd6ddfbebec8",
+      "plan_id": "00000000-0000-0000-0000-000000000101",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 9700,
+      "started_at": "2026-04-26T17:45:33.323856-03:00",
+      "renewal_at": "2026-05-26T17:45:33.323856-03:00",
+      "created_at": "2026-04-26T17:45:33.323856-03:00",
+      "updated_at": "2026-04-26T17:45:33.323856-03:00"
+    },
     "9782dd7f-4990-45ae-9799-b11b466273a9": {
       "id": "9782dd7f-4990-45ae-9799-b11b466273a9",
       "tenant_id": "2dd4b031-0a13-4bb7-b829-4f0c350b8e36",
@@ -103,6 +272,18 @@
       "created_at": "2026-04-19T14:59:54.7770867-03:00",
       "updated_at": "2026-04-19T14:59:54.7770867-03:00"
     },
+    "a3430d31-1c1e-4e35-8ee9-8bfad5c89de7": {
+      "id": "a3430d31-1c1e-4e35-8ee9-8bfad5c89de7",
+      "tenant_id": "c9fba423-c3c6-4414-a4f3-f0f3683df80e",
+      "plan_id": "00000000-0000-0000-0000-000000000101",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 9700,
+      "started_at": "2026-04-23T22:37:39.4606509-03:00",
+      "renewal_at": "2026-05-23T22:37:39.4606509-03:00",
+      "created_at": "2026-04-23T22:37:39.4606509-03:00",
+      "updated_at": "2026-04-23T22:37:39.4606509-03:00"
+    },
     "a7901998-7f89-4155-8ba2-22fd840e3d94": {
       "id": "a7901998-7f89-4155-8ba2-22fd840e3d94",
       "tenant_id": "622d06ea-a106-4b44-97b6-0d7dd70f0e47",
@@ -114,6 +295,18 @@
       "renewal_at": "2026-05-19T14:50:45.6439948-03:00",
       "created_at": "2026-04-19T14:50:45.6439948-03:00",
       "updated_at": "2026-04-19T14:50:45.6439948-03:00"
+    },
+    "fbf28287-38f2-48a1-aebf-36208a0f8a40": {
+      "id": "fbf28287-38f2-48a1-aebf-36208a0f8a40",
+      "tenant_id": "81405538-2e06-44ae-bf2d-41daf5ff1865",
+      "plan_id": "00000000-0000-0000-0000-000000000103",
+      "status": "active",
+      "billing_cycle": "monthly",
+      "amount_monthly": 19700,
+      "started_at": "2026-04-23T22:31:58.2491534-03:00",
+      "renewal_at": "2026-05-23T22:31:58.2491534-03:00",
+      "created_at": "2026-04-23T22:31:58.2491534-03:00",
+      "updated_at": "2026-04-23T22:31:58.2491534-03:00"
     }
   }
 }

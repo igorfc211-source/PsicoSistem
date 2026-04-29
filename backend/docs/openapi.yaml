@@ -84,6 +84,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubscriptionSuccess'
+  /v1/permissions/me:
+    get:
+      summary: Retorna as permissões efetivas da conta autenticada
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Permissões da sessão atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionSuccess'
   /v1/users/me:
     get:
       summary: Retorna o usuario autenticado
@@ -147,6 +159,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserSuccess'
   /v1/users/{id}:
+    get:
+      summary: Compatibilidade reservada para futuro detalhe do usuário
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '405':
+          description: Não implementado
     patch:
       summary: Atualiza usuario interno
       security:
@@ -189,6 +215,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /v1/users/{id}/permissions:
+    get:
+      summary: Retorna as permissões de uma conta do tenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Permissões da conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionSuccess'
+    patch:
+      summary: Atualiza as permissões de uma conta do tenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermissionInput'
+      responses:
+        '200':
+          description: Permissões atualizadas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionSuccess'
 components:
   securitySchemes:
     bearerAuth:
@@ -216,7 +285,7 @@ components:
             - $ref: '#/components/schemas/ApiError'
     RegisterInput:
       type: object
-      required: [clinic_name, name, email, password, phone, plan_slug]
+      required: [clinic_name, name, email, password, phone, cpf_cnpj, plan_slug, payment_session_confirmed]
       properties:
         clinic_name:
           type: string
@@ -228,9 +297,15 @@ components:
           type: string
         phone:
           type: string
+        cpf_cnpj:
+          type: string
         plan_slug:
           type: string
           enum: [basico, intermediario, premium]
+        payment_session_confirmed:
+          type: boolean
+        accept_trial_terms:
+          type: boolean
     LoginInput:
       type: object
       required: [email, password]
@@ -269,6 +344,36 @@ components:
         status:
           type: string
           enum: [active, inactive]
+    AccountPermissions:
+      type: object
+      properties:
+        user_directory:
+          type: string
+          enum: [none, own, all]
+        patients:
+          type: string
+          enum: [none, own, all]
+        services:
+          type: string
+          enum: [none, own, all]
+        calendar:
+          type: string
+          enum: [none, own, all]
+        finance:
+          type: string
+          enum: [none, own, all]
+        ai_history:
+          type: string
+          enum: [none, own, all]
+        plans:
+          type: string
+          enum: [none, own, all]
+    UpdatePermissionInput:
+      type: object
+      required: [permissions]
+      properties:
+        permissions:
+          $ref: '#/components/schemas/AccountPermissions'
     Tenant:
       type: object
       properties:
@@ -308,6 +413,8 @@ components:
           type: string
         status:
           type: string
+        permissions:
+          $ref: '#/components/schemas/AccountPermissions'
         last_login_at:
           type: string
           format: date-time
@@ -327,7 +434,13 @@ components:
           type: string
         amount_monthly:
           type: integer
+        next_amount_monthly:
+          type: integer
         renewal_at:
+          type: string
+          format: date-time
+          nullable: true
+        trial_ends_at:
           type: string
           format: date-time
           nullable: true
@@ -379,6 +492,29 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/SubscriptionSummary'
+        meta:
+          nullable: true
+        error:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    PermissionPayload:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+        can_manage_users:
+          type: boolean
+        permissions:
+          $ref: '#/components/schemas/AccountPermissions'
+    PermissionSuccess:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/PermissionPayload'
         meta:
           nullable: true
         error:

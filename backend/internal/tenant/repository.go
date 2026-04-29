@@ -14,6 +14,8 @@ type Repository interface {
 	Create(ctx context.Context, item *Tenant) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Tenant, error)
 	ExistsBySlug(ctx context.Context, slug string) (bool, error)
+	ExistsByCNPJ(ctx context.Context, cnpj string) (bool, error)
+	ExistsByPhone(ctx context.Context, phone string) (bool, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -30,6 +32,12 @@ func (r *JSONRepository) Create(_ context.Context, item *Tenant) error {
 		for _, record := range state.Tenants {
 			if strings.EqualFold(record.Slug, item.Slug) {
 				return sharederrors.Conflict("TENANT_SLUG_ALREADY_EXISTS", "clinic slug already exists")
+			}
+			if item.CNPJ != "" && record.CNPJ == item.CNPJ {
+				return sharederrors.Conflict("TENANT_DOCUMENT_ALREADY_EXISTS", "cpf_cnpj already registered")
+			}
+			if record.Phone == item.Phone {
+				return sharederrors.Conflict("TENANT_PHONE_ALREADY_EXISTS", "phone already registered")
 			}
 		}
 
@@ -77,6 +85,38 @@ func (r *JSONRepository) ExistsBySlug(_ context.Context, slug string) (bool, err
 	err := r.store.View(func(state database.State) error {
 		for _, record := range state.Tenants {
 			if strings.EqualFold(record.Slug, slug) {
+				exists = true
+				break
+			}
+		}
+		return nil
+	})
+
+	return exists, err
+}
+
+func (r *JSONRepository) ExistsByCNPJ(_ context.Context, cnpj string) (bool, error) {
+	exists := false
+
+	err := r.store.View(func(state database.State) error {
+		for _, record := range state.Tenants {
+			if record.CNPJ == cnpj {
+				exists = true
+				break
+			}
+		}
+		return nil
+	})
+
+	return exists, err
+}
+
+func (r *JSONRepository) ExistsByPhone(_ context.Context, phone string) (bool, error) {
+	exists := false
+
+	err := r.store.View(func(state database.State) error {
+		for _, record := range state.Tenants {
+			if record.Phone == phone {
 				exists = true
 				break
 			}

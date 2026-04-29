@@ -1,6 +1,10 @@
 package security
 
-import "github.com/google/uuid"
+import (
+	"api-on/internal/shared/permissions"
+
+	"github.com/google/uuid"
+)
 
 const (
 	UserTypeInternal = "internal"
@@ -9,11 +13,12 @@ const (
 
 // Identity representa o ator autenticado da requisição.
 type Identity struct {
-	UserID   uuid.UUID
-	TenantID uuid.UUID
-	Role     string
-	Email    string
-	Type     string
+	UserID      uuid.UUID
+	TenantID    uuid.UUID
+	Role        string
+	Email       string
+	Type        string
+	Permissions permissions.AccountPermissions
 }
 
 func (i Identity) HasRole(roles ...string) bool {

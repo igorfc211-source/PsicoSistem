@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"api-on/internal/shared/security"
 	sharederrors "api-on/internal/shared/errors"
+	"api-on/internal/shared/permissions"
+	"api-on/internal/shared/security"
 	sharedvalidator "api-on/internal/shared/validator"
 	"api-on/internal/subscription"
 	"api-on/pkg/hash"
@@ -97,6 +98,7 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 		PasswordHash: passwordHash,
 		Role:         strings.TrimSpace(input.Role),
 		Status:       strings.TrimSpace(input.Status),
+		Permissions:  permissions.DefaultForRole(strings.TrimSpace(input.Role)),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -141,6 +143,9 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, userID uu
 
 	item.Name = strings.TrimSpace(input.Name)
 	item.Email = sharedvalidator.NormalizeEmail(input.Email)
+	if item.Role != strings.TrimSpace(input.Role) {
+		item.Permissions = permissions.DefaultForRole(strings.TrimSpace(input.Role))
+	}
 	item.Role = strings.TrimSpace(input.Role)
 	item.Status = strings.TrimSpace(input.Status)
 	item.UpdatedAt = time.Now()
@@ -192,5 +197,7 @@ func (u *Usecase) ensurePlanCapacity(ctx context.Context, tenantID uuid.UUID) er
 }
 
 func canManageUsers(actor security.Identity) bool {
-	return actor.IsInternal() && actor.HasRole(RoleOwner, RoleAdmin)
+	return actor.IsInternal() &&
+		actor.HasRole(RoleOwner, RoleAdmin) &&
+		actor.Permissions.CanViewAllUsers()
 }
