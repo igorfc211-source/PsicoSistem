@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { CalendarDay } from '../domain/types';
+	import type { CalendarDay } from '../../domain/types';
 
 	let {
 		days,

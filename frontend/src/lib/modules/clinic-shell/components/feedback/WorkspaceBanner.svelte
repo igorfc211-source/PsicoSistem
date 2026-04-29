@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Banner } from '../types';
+	import type { Banner } from '../../types';
 
 	let { banner } = $props<{ banner: Banner | null }>();
 </script>

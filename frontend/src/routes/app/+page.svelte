@@ -2,27 +2,35 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import AppSidebar from '$lib/modules/clinic-shell/components/AppSidebar.svelte';
-	import AppTopbar from '$lib/modules/clinic-shell/components/AppTopbar.svelte';
-	import WorkspaceBanner from '$lib/modules/clinic-shell/components/WorkspaceBanner.svelte';
+	import { AppSidebar, AppTopbar, WorkspaceBanner } from '$lib/modules/clinic-shell/components';
 	import '$lib/modules/clinic-shell/styles/clinic-app.css';
 	import type { Banner, NavSection } from '$lib/modules/clinic-shell/types';
-	import AgendaWorkspace from '$lib/modules/learners/components/AgendaWorkspace.svelte';
-	import LearnersWorkspace from '$lib/modules/learners/components/LearnersWorkspace.svelte';
+	import { AgendaWorkspace, LearnersWorkspace } from '$lib/modules/learners/components';
 	import { clearStoredSession, getStoredSession, type StoredSession } from '$lib/auth';
 	import {
 		PLAN_CATEGORIES,
+		appendDocumentsToLearner,
 		buildCalendarDays,
 		createId,
 		createLearner,
+		createReportEntry,
+		createSessionVisit,
 		deleteDocumentBlob,
+		filterLearners,
 		getDocumentBlob,
 		getDocumentStorageKey,
 		loadLearners,
+		patchLearnerInList,
 		prepareDocumentBlob,
+		prependReportToLearner,
 		putDocumentBlob,
+		removeReportFromLearner,
+		removeVisitFromList,
 		saveLearners,
+		sortVisitsBySchedule,
 		toDateInputValue,
+		updateActionPlanValue,
+		updateVisitInList,
 		type ActionPlan,
 		type DetailTab,
 		type Learner,
@@ -32,9 +40,11 @@
 		type Visit
 	} from '$lib/learners';
 	import {
+		addAgendaEvent,
 		buildDayScheduleItems,
-		createAgendaEvent,
+		isInvalidScheduleTime,
 		loadAgendaEvents,
+		removeAgendaEventById,
 		saveAgendaEvents,
 		type AgendaEvent,
 		type NewAgendaEventInput,
@@ -57,20 +67,7 @@
 	let showAddForm = $state(false);
 	let banner = $state<Banner | null>(null);
 
-	const searchedLearners = $derived(
-		learners.filter((learner) => {
-			const query = searchTerm.trim().toLowerCase();
-			if (!query) return true;
-
-			return [learner.name, learner.guardian, learner.gender, learner.age]
-				.join(' ')
-				.toLowerCase()
-				.includes(query);
-		})
-	);
-	const filteredLearners = $derived(
-		searchedLearners.filter((learner) => learnerFilter === 'all' || learner.status === learnerFilter)
-	);
+	const filteredLearners = $derived(filterLearners(learners, searchTerm, learnerFilter));
 	const selectedLearner = $derived(
 		learners.find((learner) => learner.id === selectedLearnerId) ?? null
 	);
@@ -133,26 +130,11 @@
 		saveAgendaEvents(nextEvents);
 	}
 
-	// Substitui uma entidade sem alterar os demais aprendentes carregados na tela.
-	function replaceLearner(nextLearner: Learner) {
-		const nextLearners = learners.map((learner) =>
-			learner.id === nextLearner.id ? nextLearner : learner
-		);
-
-		learners = nextLearners;
-		persistLearners(nextLearners);
-	}
-
 	// Atualiza qualquer aprendente por id, mantendo a data de edicao em um unico lugar.
 	function updateLearnerById(learnerId: string, patch: Partial<Learner>) {
-		const targetLearner = learners.find((learner) => learner.id === learnerId);
-		if (!targetLearner) return;
-
-		replaceLearner({
-			...targetLearner,
-			...patch,
-			updatedAt: new Date().toISOString()
-		});
+		const nextLearners = patchLearnerInList(learners, learnerId, patch);
+		learners = nextLearners;
+		persistLearners(nextLearners);
 	}
 
 	// Aplica mudancas no aprendente selecionado, usado por anamnese, documentos, plano e agenda.
@@ -166,10 +148,7 @@
 		if (!selectedLearner) return;
 
 		updateSelectedLearner({
-			actionPlan: {
-				...selectedLearner.actionPlan,
-				[key]: value
-			}
+			actionPlan: updateActionPlanValue(selectedLearner.actionPlan, key, value)
 		});
 	}
 
@@ -178,9 +157,7 @@
 		if (!selectedLearner) return;
 
 		updateSelectedLearner({
-			visits: selectedLearner.visits
-				.map((visit) => (visit.id === visitId ? { ...visit, ...patch } : visit))
-				.sort(sortVisitsBySchedule)
+			visits: updateVisitInList(selectedLearner.visits, visitId, patch)
 		});
 	}
 
@@ -263,7 +240,7 @@
 	// Remove uma visita e sincroniza a contagem exibida no cadastro do aprendente.
 	function removeVisit(id: string) {
 		if (!selectedLearner) return;
-		const nextVisits = selectedLearner.visits.filter((visit) => visit.id !== id);
+		const nextVisits = removeVisitFromList(selectedLearner.visits, id);
 
 		updateSelectedLearner({
 			visits: nextVisits,
@@ -291,17 +268,7 @@
 			return false;
 		}
 
-		const visit: Visit = {
-			id: createId('visit'),
-			date: input.date,
-			title: input.title.trim() || 'Sessao individual',
-			startTime: input.startTime,
-			endTime: input.endTime,
-			kind: 'session',
-			location: input.location.trim() || 'Consultorio',
-			status: 'scheduled',
-			notes: input.notes.trim()
-		};
+		const visit = createSessionVisit(input);
 		const nextVisits = [...learner.visits, visit].sort(sortVisitsBySchedule);
 
 		updateLearnerById(learner.id, {
@@ -336,10 +303,7 @@
 			return false;
 		}
 
-		const event = createAgendaEvent(input);
-		const nextEvents = [...agendaEvents, event].sort((left, right) =>
-			`${left.date}-${left.startTime}`.localeCompare(`${right.date}-${right.startTime}`)
-		);
+		const { events: nextEvents } = addAgendaEvent(agendaEvents, input);
 
 		agendaEvents = nextEvents;
 		selectedAgendaDate = input.date;
@@ -353,7 +317,7 @@
 
 	// Remove eventos livres sem mexer nas sessoes registradas nos aprendentes.
 	function removeAgendaEvent(event: AgendaEvent) {
-		const nextEvents = agendaEvents.filter((item) => item.id !== event.id);
+		const nextEvents = removeAgendaEventById(agendaEvents, event.id);
 		agendaEvents = nextEvents;
 		persistAgendaEvents(nextEvents);
 		banner = {
@@ -396,8 +360,9 @@
 
 			const currentLearner = learners.find((learner) => learner.id === targetLearner.id);
 			if (currentLearner) {
+				const nextLearner = appendDocumentsToLearner(currentLearner, uploadedDocuments);
 				updateLearnerById(targetLearner.id, {
-					documents: [...currentLearner.documents, ...uploadedDocuments]
+					documents: nextLearner.documents
 				});
 			}
 
@@ -451,17 +416,9 @@
 	function addReport(text: string) {
 		if (!selectedLearner || !text.trim()) return;
 
-		const now = new Date().toISOString();
+		const nextLearner = prependReportToLearner(selectedLearner, createReportEntry(text));
 		updateSelectedLearner({
-			reports: [
-				{
-					id: createId('report'),
-					text: text.trim(),
-					createdAt: now,
-					updatedAt: now
-				},
-				...selectedLearner.reports
-			]
+			reports: nextLearner.reports
 		});
 	}
 
@@ -469,8 +426,9 @@
 	function removeReport(id: string) {
 		if (!selectedLearner) return;
 
+		const nextLearner = removeReportFromLearner(selectedLearner, id);
 		updateSelectedLearner({
-			reports: selectedLearner.reports.filter((report) => report.id !== id)
+			reports: nextLearner.reports
 		});
 	}
 
@@ -478,15 +436,6 @@
 	function logout() {
 		clearStoredSession();
 		void goto('/');
-	}
-
-	// Padroniza a ordenacao de visitas pelo dia e horario.
-	function sortVisitsBySchedule(left: Visit, right: Visit) {
-		return `${left.date}-${left.startTime}`.localeCompare(`${right.date}-${right.startTime}`);
-	}
-
-	function isInvalidScheduleTime(startTime: string, endTime: string) {
-		return !startTime || !endTime || endTime <= startTime;
 	}
 </script>
 

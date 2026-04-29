@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { NAV_ITEMS, type NavSection } from '../types';
+	import { NAV_ITEMS, type NavSection } from '../../types';
 
 	let {
 		tenantName,

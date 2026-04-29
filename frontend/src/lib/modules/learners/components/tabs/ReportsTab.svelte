@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { LearnerReport } from '../domain/types';
+	import type { LearnerReport } from '../../domain/types';
 	import { formatDateTime } from '$lib/shared/formatters';
 
 	let {

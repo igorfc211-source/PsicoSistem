@@ -6,8 +6,8 @@
 		NewSessionAppointmentInput,
 		ScheduleItem
 	} from '$lib/modules/scheduling';
-	import CalendarPanel from './CalendarPanel.svelte';
-	import DaySchedulerPanel from '$lib/modules/scheduling/components/DaySchedulerPanel.svelte';
+	import CalendarPanel from '../calendar/CalendarPanel.svelte';
+	import { DaySchedulerPanel } from '$lib/modules/scheduling/components';
 
 	let {
 		calendarDays,

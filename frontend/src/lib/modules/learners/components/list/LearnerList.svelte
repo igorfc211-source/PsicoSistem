@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Learner } from '../domain/types';
+	import type { Learner } from '../../domain/types';
 	import { getInitials } from '$lib/shared/formatters';
 
 	let {

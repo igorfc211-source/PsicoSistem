@@ -8,13 +8,13 @@
 		Visit
 	} from '$lib/modules/learners';
 	import { getInitials } from '$lib/shared/formatters';
-	import { DETAIL_TABS, type DetailTab } from '../presentation/types';
-	import ActionPlanTab from './ActionPlanTab.svelte';
-	import AgendaTab from './AgendaTab.svelte';
-	import AnamneseTab from './AnamneseTab.svelte';
-	import DocumentsTab from './DocumentsTab.svelte';
-	import ReportsTab from './ReportsTab.svelte';
-	import SummaryTab from './SummaryTab.svelte';
+	import { DETAIL_TABS, type DetailTab } from '../../presentation/types';
+	import ActionPlanTab from '../tabs/ActionPlanTab.svelte';
+	import AgendaTab from '../tabs/AgendaTab.svelte';
+	import AnamneseTab from '../tabs/AnamneseTab.svelte';
+	import DocumentsTab from '../tabs/DocumentsTab.svelte';
+	import ReportsTab from '../tabs/ReportsTab.svelte';
+	import SummaryTab from '../tabs/SummaryTab.svelte';
 
 	let {
 		learner,

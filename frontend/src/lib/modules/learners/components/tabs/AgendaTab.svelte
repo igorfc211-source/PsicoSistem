@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { CalendarDay, Visit } from '../domain/types';
-	import CalendarPanel from './CalendarPanel.svelte';
+	import type { CalendarDay, Visit } from '../../domain/types';
+	import CalendarPanel from '../calendar/CalendarPanel.svelte';
 	import VisitEditor from './VisitEditor.svelte';
 
 	let {

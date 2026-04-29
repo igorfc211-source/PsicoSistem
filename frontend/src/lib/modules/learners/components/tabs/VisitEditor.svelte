@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Visit, VisitStatus } from '../domain/types';
+	import type { Visit, VisitStatus } from '../../domain/types';
 
 	let {
 		visit,

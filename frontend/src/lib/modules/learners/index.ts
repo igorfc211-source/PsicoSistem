@@ -1,3 +1,4 @@
+export * from './application/learner-operations';
 export * from './domain/calendar';
 export * from './domain/factories';
 export * from './domain/plan';

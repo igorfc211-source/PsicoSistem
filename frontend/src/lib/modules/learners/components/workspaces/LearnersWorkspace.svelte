@@ -10,10 +10,10 @@
 		PlanCategory,
 		Visit
 	} from '$lib/modules/learners';
-	import type { DetailTab, LearnerFilter } from '../presentation/types';
-	import LearnerAddForm from './LearnerAddForm.svelte';
-	import LearnerDetailPanel from './LearnerDetailPanel.svelte';
-	import LearnerList from './LearnerList.svelte';
+	import type { DetailTab, LearnerFilter } from '../../presentation/types';
+	import LearnerAddForm from '../forms/LearnerAddForm.svelte';
+	import LearnerDetailPanel from '../detail/LearnerDetailPanel.svelte';
+	import LearnerList from '../list/LearnerList.svelte';
 
 	let {
 		activeSection,
