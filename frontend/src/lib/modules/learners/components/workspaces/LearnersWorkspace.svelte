@@ -94,7 +94,9 @@
 </script>
 
 <section class="learners-workspace">
+	<!-- Coluna esquerda: controles de lista, filtros, cadastro e selecao de aprendentes. -->
 	<div class="learners-column">
+		<!-- Cabecalho da lista com total filtrado e acao de adicionar. -->
 		<div class="section-title">
 			<div>
 				<h1>{getSectionTitle(activeSection)}</h1>
@@ -107,6 +109,7 @@
 			</div>
 		</div>
 
+		<!-- Filtros de status para alternar rapidamente entre ativos, inativos e todos. -->
 		<div class="filter-pills" aria-label="Filtrar aprendentes">
 			<button
 				type="button"
@@ -131,10 +134,12 @@
 			</button>
 		</div>
 
+		<!-- Formulario expansivel: fica perto da lista para manter o fluxo de cadastro curto. -->
 		{#if showAddForm}
 			<LearnerAddForm onCreate={onCreateLearner} onCancel={onCloseAddForm} />
 		{/if}
 
+		<!-- Lista navegavel de aprendentes; ao selecionar, o detalhe abre na coluna direita. -->
 		<LearnerList
 			learners={filteredLearners}
 			{selectedLearnerId}
@@ -142,6 +147,7 @@
 		/>
 	</div>
 
+	<!-- Coluna direita: prontuario completo do aprendente selecionado. -->
 	<LearnerDetailPanel
 		learner={selectedLearner}
 		{detailTab}

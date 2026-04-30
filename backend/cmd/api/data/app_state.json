@@ -52,6 +52,17 @@
       "created_at": "2026-04-19T14:59:54.7770867-03:00",
       "updated_at": "2026-04-19T14:59:54.7770867-03:00"
     },
+    "5d7b3f94-ddde-4b83-bae9-39f571d7551a": {
+      "id": "5d7b3f94-ddde-4b83-bae9-39f571d7551a",
+      "name": "Clinica2",
+      "slug": "clinica2",
+      "cnpj": "40569784840",
+      "email": "email@email.com",
+      "phone": "11111111111",
+      "status": "active",
+      "created_at": "2026-04-30T14:44:03.0562968-03:00",
+      "updated_at": "2026-04-30T14:44:03.0562968-03:00"
+    },
     "60a719f0-6754-428e-8f5e-f1e5b7fa51e6": {
       "id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",
       "name": "Igor França Candido",
@@ -126,9 +137,9 @@
         "ai_history": "all",
         "plans": "all"
       },
-      "last_login_at": "2026-04-30T12:44:56.2114097-03:00",
+      "last_login_at": "2026-04-30T14:44:13.870343-03:00",
       "created_at": "2026-04-23T22:31:58.2491534-03:00",
-      "updated_at": "2026-04-30T12:44:56.2114097-03:00"
+      "updated_at": "2026-04-30T14:44:13.870343-03:00"
     },
     "0b9415c7-0ba7-4524-8529-47257cb6241c": {
       "id": "0b9415c7-0ba7-4524-8529-47257cb6241c",
@@ -213,6 +224,26 @@
       "created_at": "2026-04-19T14:50:45.6439948-03:00",
       "updated_at": "2026-04-19T14:55:34.2071685-03:00"
     },
+    "702109da-139b-40fc-830c-7dcd9a1982d9": {
+      "id": "702109da-139b-40fc-830c-7dcd9a1982d9",
+      "tenant_id": "5d7b3f94-ddde-4b83-bae9-39f571d7551a",
+      "name": "Clarissa Shishido",
+      "email": "email@email.com",
+      "password_hash": "$2a$10$KIjSH3NSiq/N6CW95yciz.3jQAuBHE0eYPXoHfHwiBOJJj7UMXZ8i",
+      "role": "owner",
+      "status": "active",
+      "permissions": {
+        "user_directory": "all",
+        "patients": "all",
+        "services": "all",
+        "calendar": "all",
+        "finance": "all",
+        "ai_history": "all",
+        "plans": "all"
+      },
+      "created_at": "2026-04-30T14:44:03.0562968-03:00",
+      "updated_at": "2026-04-30T14:44:03.0562968-03:00"
+    },
     "bc3bfcad-a47b-4b58-851f-b0369bfda260": {
       "id": "bc3bfcad-a47b-4b58-851f-b0369bfda260",
       "tenant_id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",
@@ -236,6 +267,18 @@
     }
   },
   "subscriptions": {
+    "4420153a-1712-405e-91d6-9766c8493bd2": {
+      "id": "4420153a-1712-405e-91d6-9766c8493bd2",
+      "tenant_id": "5d7b3f94-ddde-4b83-bae9-39f571d7551a",
+      "plan_id": "00000000-0000-0000-0000-000000000102",
+      "status": "trialing",
+      "billing_cycle": "monthly",
+      "amount_monthly": 0,
+      "started_at": "2026-04-30T14:44:03.0562968-03:00",
+      "renewal_at": "2026-05-30T14:44:03.0562968-03:00",
+      "created_at": "2026-04-30T14:44:03.0562968-03:00",
+      "updated_at": "2026-04-30T14:44:03.0562968-03:00"
+    },
     "569f4a20-860c-4337-9eff-a24e05391be6": {
       "id": "569f4a20-860c-4337-9eff-a24e05391be6",
       "tenant_id": "60a719f0-6754-428e-8f5e-f1e5b7fa51e6",

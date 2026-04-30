@@ -12,21 +12,25 @@ export function buildCalendarDays(
 	const month = monthDate.getMonth();
 	const firstDay = new Date(year, month, 1);
 	const start = new Date(firstDay);
-	start.setDate(firstDay.getDate() - firstDay.getDay());
+	const mondayBasedOffset = (firstDay.getDay() + 6) % 7;
+	start.setDate(firstDay.getDate() - mondayBasedOffset);
+	const todayValue = toDateInputValue(new Date());
 
 	return Array.from({ length: 42 }, (_, index) => {
 		const date = new Date(start);
 		date.setDate(start.getDate() + index);
 		const value = toDateInputValue(date);
+		const visitsInDay = visits.filter((visit) => visit.date === value);
 
 			return {
 				date: value,
 				day: date.getDate(),
 				inMonth: date.getMonth() === month,
-				isToday: value === toDateInputValue(new Date()),
+				isToday: value === todayValue,
 				isSelected: value === selectedDate,
 				eventCount: eventDates.filter((eventDate) => eventDate === value).length,
-				visits: visits.filter((visit) => visit.date === value)
+				pendingVisitCount: visitsInDay.filter((visit) => visit.status === 'scheduled').length,
+				visits: visitsInDay
 			};
 		});
 }

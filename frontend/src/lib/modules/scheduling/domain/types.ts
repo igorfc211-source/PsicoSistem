@@ -1,4 +1,4 @@
-import type { Learner, Visit } from '$lib/modules/learners';
+import type { Learner, Visit, VisitKind } from '$lib/modules/learners';
 
 export type AgendaEventKind = 'meeting' | 'supervision' | 'block' | 'other';
 
@@ -28,6 +28,7 @@ export type NewSessionAppointmentInput = {
 	date: string;
 	startTime: string;
 	endTime: string;
+	kind: VisitKind;
 	title: string;
 	notes: string;
 	location: string;

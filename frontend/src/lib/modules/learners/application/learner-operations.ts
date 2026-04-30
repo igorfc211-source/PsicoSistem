@@ -127,7 +127,7 @@ export function createSessionVisit(input: NewSessionAppointmentInput): Visit {
 		title: input.title.trim() || 'Sessao individual',
 		startTime: input.startTime,
 		endTime: input.endTime,
-		kind: 'session',
+		kind: input.kind,
 		location: input.location.trim() || 'Consultorio',
 		status: 'scheduled',
 		notes: input.notes.trim()

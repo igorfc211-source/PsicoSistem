@@ -18,6 +18,7 @@
 </script>
 
 <section class="tab-panel">
+	<!-- Toolbar de documentos gerais: upload multiplo com limite e compactacao automatica. -->
 	<div class="document-toolbar">
 		<span>Limite por documento: {formatFileSize(MAX_DOCUMENT_BYTES)}</span>
 		<label class="upload-button">
@@ -26,9 +27,11 @@
 		</label>
 	</div>
 
+	<!-- Lista de documentos do prontuario: metadados no localStorage, arquivo no IndexedDB. -->
 	<div class="document-list">
 		{#each documents as document}
 			<div class="document-row card">
+				<!-- Dados do arquivo armazenado. -->
 				<div>
 					<strong>{document.name}</strong>
 					<span>
@@ -37,6 +40,8 @@
 						- {formatDateTime(document.createdAt)}
 					</span>
 				</div>
+
+				<!-- Acoes do documento: baixar ou excluir o blob local. -->
 				<div>
 					<button type="button" class="secondary-button" onclick={() => onDownload(document)}>
 						Baixar
@@ -47,6 +52,7 @@
 				</div>
 			</div>
 		{:else}
+			<!-- Estado vazio para prontuarios sem documentos anexados. -->
 			<p class="empty-state">Nenhum documento armazenado.</p>
 		{/each}
 	</div>

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Learner } from '$lib/modules/learners';
+	import type { Learner, VisitKind } from '$lib/modules/learners';
+	import LearnerAvatar from '$lib/modules/learners/components/avatar/LearnerAvatar.svelte';
 	import {
 		getAgendaEventKindLabel,
 		type AgendaEvent,
@@ -35,6 +36,7 @@
 
 	let actionMode = $state<'session' | 'event'>('session');
 	let sessionLearnerId = $state('');
+	let sessionKind = $state<VisitKind>('session');
 	let sessionStartTime = $state('09:00');
 	let sessionEndTime = $state('09:50');
 	let sessionTitle = $state('Sessao individual');
@@ -53,6 +55,25 @@
 		}
 	});
 
+	const visitKindOptions: Array<{ value: VisitKind; label: string; defaultTitle: string }> = [
+		{ value: 'session', label: 'Sessao', defaultTitle: 'Sessao individual' },
+		{ value: 'assessment', label: 'Avaliacao', defaultTitle: 'Avaliacao inicial' },
+		{ value: 'return', label: 'Retorno', defaultTitle: 'Retorno clinico' }
+	];
+
+	// Traduz o tipo de visita para exibicao humana nos cards da agenda.
+	function getVisitKindLabel(kind: VisitKind) {
+		return visitKindOptions.find((option) => option.value === kind)?.label ?? 'Sessao';
+	}
+
+	// Ao trocar o tipo, sugere um titulo coerente sem travar a edicao manual.
+	function handleVisitKindChange(event: Event) {
+		const value = (event.currentTarget as HTMLSelectElement).value as VisitKind;
+		sessionKind = value;
+		sessionTitle =
+			visitKindOptions.find((option) => option.value === value)?.defaultTitle ?? sessionTitle;
+	}
+
 	// Cria uma sessao vinculada ao aprendente selecionado e limpa apenas campos descritivos.
 	function handleCreateSession(event: SubmitEvent) {
 		event.preventDefault();
@@ -62,6 +83,7 @@
 			date: selectedDate,
 			startTime: sessionStartTime,
 			endTime: sessionEndTime,
+			kind: sessionKind,
 			title: sessionTitle,
 			location: sessionLocation,
 			notes: sessionNotes
@@ -92,32 +114,52 @@
 </script>
 
 <section class="day-scheduler">
+	<!-- Resumo do dia selecionado: data legivel e total de compromissos. -->
 	<div class="day-scheduler-head">
 		<div>
 			<span>Dia selecionado</span>
 			<h2>{selectedDateLabel}</h2>
+			<p>Data NBR 5892: {selectedDate}</p>
 		</div>
 		<strong>{dayItems.length} compromisso{dayItems.length === 1 ? '' : 's'}</strong>
 	</div>
 
+	<!-- Linha do tempo: agrupa sessoes de aprendentes e eventos livres do mesmo dia. -->
 	<div class="schedule-list" aria-label="Compromissos do dia">
 		{#each dayItems as item}
 			<article class={`schedule-card ${item.kind} ${item.tone}`}>
+				<!-- Coluna de horario: deixa claro o intervalo de cada compromisso. -->
 				<div class="schedule-time">
 					<strong>{item.startTime}</strong>
 					<span>{item.endTime}</span>
 				</div>
 
+				<!-- Informacoes principais do compromisso, variando entre sessao e evento. -->
 				<div class="schedule-info">
-					<strong>{item.title}</strong>
-					<p>{item.subtitle}</p>
+					<div class="schedule-title-row">
+						{#if item.learner}
+							<LearnerAvatar
+								name={item.learner.name}
+								photoUrl={item.learner.photoUrl}
+								size="small"
+							/>
+						{/if}
+						<div>
+							<strong>{item.title}</strong>
+							<p>{item.subtitle}</p>
+						</div>
+					</div>
 					{#if item.kind === 'event' && item.event}
 						<small>{getAgendaEventKindLabel(item.event.kind)}</small>
 					{:else if item.visit}
-						<small>{item.visit.status === 'scheduled' ? 'Agendada' : item.visit.status}</small>
+						<small>
+							{getVisitKindLabel(item.visit.kind)}
+							- {item.visit.status === 'scheduled' ? 'Pendente' : item.visit.status}
+						</small>
 					{/if}
 				</div>
 
+				<!-- Acoes contextuais: abrir ficha/remover sessao ou excluir evento livre. -->
 				<div class="schedule-actions">
 					{#if item.kind === 'session' && item.learner}
 						<button type="button" class="secondary-button" onclick={() => onOpenLearner(item.learner!.id)}>
@@ -140,6 +182,7 @@
 				</div>
 			</article>
 		{:else}
+			<!-- Estado vazio: aparece quando o dia ainda nao possui compromissos. -->
 			<div class="schedule-empty">
 				<strong>Nenhum compromisso neste dia.</strong>
 				<p>Esse horario esta livre para uma sessao, reuniao, supervisao ou bloqueio.</p>
@@ -147,6 +190,7 @@
 		{/each}
 	</div>
 
+	<!-- Escolha do fluxo de cadastro: sessao vinculada a aprendente ou evento livre. -->
 	<div class="schedule-choice">
 		<span>O que gostaria de fazer nesse dia?</span>
 		<div>
@@ -168,6 +212,7 @@
 	</div>
 
 	{#if actionMode === 'session'}
+		<!-- Formulario de sessao: cria um compromisso dentro do prontuario do aprendente. -->
 		<form class="schedule-form card" onsubmit={handleCreateSession}>
 			<div class="form-grid">
 				<label>
@@ -181,7 +226,16 @@
 				</label>
 
 				<label>
-					<span>Tipo de atendimento</span>
+					<span>Tipo de visita</span>
+					<select value={sessionKind} onchange={handleVisitKindChange}>
+						{#each visitKindOptions as option}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
+
+				<label>
+					<span>Titulo do atendimento</span>
 					<input bind:value={sessionTitle} placeholder="Sessao individual" required />
 				</label>
 
@@ -209,6 +263,7 @@
 			<button type="submit" class="primary-button">Confirmar sessao</button>
 		</form>
 	{:else}
+		<!-- Formulario de evento livre: usado para reuniao, supervisao ou bloqueio de agenda. -->
 		<form class="schedule-form card" onsubmit={handleCreateEvent}>
 			<div class="form-grid">
 				<label>

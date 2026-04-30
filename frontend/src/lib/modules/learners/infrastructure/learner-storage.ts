@@ -15,6 +15,7 @@ function normalizeLearner(learner: Partial<Learner>): Learner {
 	return {
 		id: learner.id ?? '',
 		name: learner.name ?? '',
+		photoUrl: learner.photoUrl ?? '',
 		gender: learner.gender ?? '',
 		guardian: learner.guardian ?? '',
 		age: learner.age ?? '',

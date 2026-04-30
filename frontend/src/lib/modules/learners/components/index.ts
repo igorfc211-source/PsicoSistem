@@ -1,3 +1,4 @@
+export * from './avatar';
 export * from './calendar';
 export * from './detail';
 export * from './forms';

@@ -33,7 +33,9 @@
 </script>
 
 <section class="tab-panel">
+	<!-- Grade principal do plano: mistura secoes padrao e secoes personalizadas. -->
 	<div class="plan-grid">
+		<!-- Secoes padrao do protocolo clinico, definidas no dominio do modulo. -->
 		{#each categories as category}
 			<label class="plan-category card">
 				<span>{category.label}</span>
@@ -46,6 +48,7 @@
 			</label>
 		{/each}
 
+		<!-- Secoes personalizadas criadas pela clinica para este aprendente especifico. -->
 		{#each actionPlan.customFields as field}
 			<label class="plan-category card custom-plan-field">
 				<div class="custom-plan-head">
@@ -66,6 +69,7 @@
 		{/each}
 	</div>
 
+	<!-- Criador de novas categorias: deixa o plano extensivel sem alterar o codigo. -->
 	<form class="custom-plan-form card" onsubmit={handleAddCustomField}>
 		<div>
 			<strong>Adicionar campo ao plano</strong>

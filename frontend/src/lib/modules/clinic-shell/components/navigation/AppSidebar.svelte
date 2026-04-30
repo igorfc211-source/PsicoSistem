@@ -4,21 +4,28 @@
 	let {
 		tenantName,
 		activeSection,
-		onSelectSection
+		isOpen,
+		onSelectSection,
+		onClose
 	} = $props<{
 		tenantName: string;
 		activeSection: NavSection;
+		isOpen: boolean;
 		onSelectSection: (section: NavSection) => void;
+		onClose: () => void;
 	}>();
 </script>
 
-<aside class="sidebar">
+<aside class="sidebar" class:open={isOpen}>
+	<!-- Identidade da clinica: logo simples, nome do tenant e futuro seletor. -->
 	<div class="clinic-brand">
 		<div class="brand-mark">PC</div>
 		<strong>{tenantName}</strong>
 		<span>v</span>
+		<button type="button" class="sidebar-close" aria-label="Fechar menu" onclick={onClose}>x</button>
 	</div>
 
+	<!-- Navegacao principal: controla qual workspace aparece no painel. -->
 	<nav class="side-nav" aria-label="Navegacao principal">
 		{#each NAV_ITEMS as item}
 			<button
@@ -32,6 +39,7 @@
 		{/each}
 	</nav>
 
+	<!-- Card comercial: isolado para evoluir depois para consumo real do plano. -->
 	<div class="plan-card">
 		<div>*</div>
 		<strong>Plano Premium</strong>

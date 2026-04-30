@@ -22,6 +22,7 @@
 </script>
 
 <section class="tab-panel">
+	<!-- Campo principal da anamnese: texto livre salvo diretamente no prontuario. -->
 	<textarea
 		class="large-textarea"
 		value={value}
@@ -29,7 +30,9 @@
 		placeholder="Anamnese do aprendente."
 	></textarea>
 
+	<!-- Area de anexos da anamnese: arquivos ficam separados dos documentos gerais. -->
 	<div class="anamnese-files card">
+		<!-- Toolbar de upload: mostra estado de envio e aceita multiplos arquivos. -->
 		<div class="document-toolbar">
 			<span>Anexos da anamnese</span>
 			<label class="upload-button">
@@ -38,9 +41,11 @@
 			</label>
 		</div>
 
+		<!-- Lista de arquivos anexados: permite baixar ou excluir item por item. -->
 		<div class="document-list">
 			{#each documents as document}
 				<div class="document-row">
+					<!-- Metadados do arquivo: nome, tamanho armazenado, compressao e data. -->
 					<div>
 						<strong>{document.name}</strong>
 						<span>
@@ -49,6 +54,8 @@
 							- {formatDateTime(document.createdAt)}
 						</span>
 					</div>
+
+					<!-- Acoes do arquivo: download do blob local ou remocao da anamnese. -->
 					<div>
 						<button type="button" class="secondary-button" onclick={() => onDownload(document)}>
 							Baixar

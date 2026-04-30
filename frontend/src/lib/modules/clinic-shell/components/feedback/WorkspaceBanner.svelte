@@ -5,5 +5,6 @@
 </script>
 
 {#if banner}
+	<!-- Feedback global da pagina: sucesso, erro ou informacao depois de uma acao. -->
 	<div class={`workspace-banner ${banner.tone}`}>{banner.text}</div>
 {/if}

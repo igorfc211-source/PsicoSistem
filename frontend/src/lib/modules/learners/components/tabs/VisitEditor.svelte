@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Visit, VisitStatus } from '../../domain/types';
+	import type { Visit, VisitKind, VisitStatus } from '../../domain/types';
 
 	let {
 		visit,
@@ -13,9 +13,11 @@
 </script>
 
 <div class="visit-editor card">
+	<!-- Cabecalho do editor: mostra a data ou orienta a selecionar um dia no calendario. -->
 	<h3>{visit ? visit.date : 'Selecione uma data'}</h3>
 
 	{#if visit}
+		<!-- Dados principais da sessao selecionada. -->
 		<label>
 			<span>Titulo</span>
 			<input
@@ -27,6 +29,23 @@
 			/>
 		</label>
 
+		<!-- Tipo da visita: diferencia sessao, avaliacao e retorno no calendario. -->
+		<label>
+			<span>Tipo de visita</span>
+			<select
+				value={visit.kind}
+				onchange={(event) =>
+					onUpdateVisit(visit.id, {
+						kind: (event.currentTarget as HTMLSelectElement).value as VisitKind
+					})}
+			>
+				<option value="session">Sessao</option>
+				<option value="assessment">Avaliacao</option>
+				<option value="return">Retorno</option>
+			</select>
+		</label>
+
+		<!-- Horarios precisos: inicio e fim do atendimento. -->
 		<div class="form-grid compact">
 			<label>
 				<span>Inicio</span>
@@ -53,6 +72,7 @@
 			</label>
 		</div>
 
+		<!-- Local ou modalidade da sessao: consultorio, online, escola ou outro. -->
 		<label>
 			<span>Local / modalidade</span>
 			<input
@@ -64,6 +84,7 @@
 			/>
 		</label>
 
+		<!-- Status operacional usado para acompanhar frequencia e andamento. -->
 		<label>
 			<span>Status da visita</span>
 			<select
@@ -79,6 +100,7 @@
 			</select>
 		</label>
 
+		<!-- Observacoes internas da visita selecionada. -->
 		<label>
 			<span>Observacoes</span>
 			<textarea
@@ -90,6 +112,7 @@
 			></textarea>
 		</label>
 
+		<!-- Acao destrutiva isolada no fim do formulario para reduzir exclusoes acidentais. -->
 		<button type="button" class="danger-button" onclick={() => onRemoveVisit(visit.id)}>
 			Remover visita
 		</button>

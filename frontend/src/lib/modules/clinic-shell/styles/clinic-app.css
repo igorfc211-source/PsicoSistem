@@ -17,6 +17,11 @@ body {
 	background: #ffffff;
 }
 
+.clinic-shell.dark-mode {
+	background: #101521;
+	color: #eef2ff;
+}
+
 .window-bar {
 	display: flex;
 	align-items: center;
@@ -63,6 +68,16 @@ body {
 	align-items: center;
 	gap: 14px;
 	font-size: 1.2rem;
+}
+
+.sidebar-close {
+	display: none;
+	margin-left: auto;
+	border-radius: 8px;
+	background: #f4f5f8;
+	color: #394153;
+	font-weight: 900;
+	padding: 8px 10px;
 }
 
 .brand-mark {
@@ -164,6 +179,26 @@ button {
 	padding: 18px 32px;
 }
 
+.mobile-menu-button {
+	display: none;
+	width: 42px;
+	height: 42px;
+	flex: 0 0 auto;
+	border: 1px solid #e0e4ec;
+	border-radius: 8px;
+	background: #fff;
+	place-items: center;
+	padding: 9px;
+}
+
+.mobile-menu-button span {
+	display: block;
+	width: 18px;
+	height: 2px;
+	border-radius: 999px;
+	background: #394153;
+}
+
 .search-box {
 	position: relative;
 	width: min(650px, 100%);
@@ -194,6 +229,41 @@ button {
 	gap: 18px;
 }
 
+.profile-menu {
+	position: relative;
+}
+
+.profile-dropdown {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 12px);
+	z-index: 20;
+	display: grid;
+	min-width: 210px;
+	border: 1px solid #e0e4ec;
+	border-radius: 12px;
+	background: #fff;
+	box-shadow: 0 20px 40px rgba(30, 36, 48, 0.16);
+	overflow: hidden;
+}
+
+.profile-dropdown button {
+	background: transparent;
+	color: #394153;
+	font-weight: 750;
+	padding: 13px 15px;
+	text-align: left;
+}
+
+.profile-dropdown button:hover {
+	background: #f5f0ff;
+	color: #7047f5;
+}
+
+.profile-dropdown .danger-item {
+	color: #b24a38;
+}
+
 .bell-button,
 .user-menu {
 	background: transparent;
@@ -203,6 +273,7 @@ button {
 .user-avatar,
 .avatar {
 	display: grid;
+	overflow: hidden;
 	place-items: center;
 	border-radius: 999px;
 	background: linear-gradient(135deg, #f0d6c6, #c8ddff);
@@ -220,6 +291,13 @@ button {
 	align-items: center;
 	gap: 10px;
 	font-weight: 750;
+}
+
+.avatar img {
+	width: 100%;
+	height: 100%;
+	border-radius: inherit;
+	object-fit: cover;
 }
 
 .workspace-banner {
@@ -371,6 +449,32 @@ h3 {
 	background: #fff;
 	margin-bottom: 16px;
 	padding: 16px;
+}
+
+.photo-field {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	border: 1px dashed #d7dce6;
+	border-radius: 12px;
+	background: #fbfcff;
+	padding: 14px;
+}
+
+.photo-field > div:last-child {
+	display: grid;
+	gap: 8px;
+}
+
+.photo-field p,
+.photo-field small {
+	color: #6b7383;
+}
+
+.photo-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
 }
 
 .form-grid {
@@ -575,6 +679,7 @@ textarea:focus {
 
 .calendar-grid button,
 .mini-grid button {
+	position: relative;
 	display: grid;
 	min-height: 36px;
 	place-items: center;
@@ -601,6 +706,22 @@ textarea:focus {
 	background: #1e2430;
 	color: #fff;
 	box-shadow: 0 0 0 4px rgba(112, 71, 245, 0.14);
+}
+
+.calendar-badge {
+	position: absolute;
+	right: 1px;
+	top: 1px;
+	display: grid;
+	min-width: 15px;
+	height: 15px;
+	place-items: center;
+	border-radius: 999px;
+	background: #ffbd38;
+	color: #1e2430;
+	font-size: 0.62rem;
+	font-weight: 900;
+	padding: 0 3px;
 }
 
 .tab-panel {
@@ -820,6 +941,7 @@ textarea:focus {
 }
 
 .day-scheduler-head span,
+.day-scheduler-head p,
 .schedule-choice > span,
 .schedule-info small {
 	color: #6b7383;
@@ -860,6 +982,10 @@ textarea:focus {
 	border-left-color: #60c890;
 }
 
+.schedule-card.blue {
+	border-left-color: #5574f7;
+}
+
 .schedule-card.amber {
 	border-left-color: #f3b44b;
 }
@@ -890,6 +1016,12 @@ textarea:focus {
 .schedule-info {
 	display: grid;
 	gap: 5px;
+}
+
+.schedule-title-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
 }
 
 .schedule-actions {
@@ -949,6 +1081,145 @@ textarea:focus {
 
 .empty-state {
 	color: #6b7383;
+}
+
+.pending-visits {
+	display: grid;
+	gap: 12px;
+}
+
+.pending-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+.pending-head span {
+	border-radius: 999px;
+	background: #fff4d8;
+	color: #9c6b12;
+	font-weight: 900;
+	padding: 5px 9px;
+}
+
+.pending-list {
+	display: grid;
+	gap: 8px;
+}
+
+.pending-list button {
+	display: grid;
+	gap: 4px;
+	border: 1px solid #e7eaf0;
+	border-radius: 8px;
+	background: #fff;
+	color: #1e2430;
+	padding: 10px;
+	text-align: left;
+}
+
+.pending-list span {
+	color: #6b7383;
+	font-size: 0.82rem;
+}
+
+.sidebar-backdrop {
+	display: none;
+}
+
+.clinic-shell.dark-mode .sidebar,
+.clinic-shell.dark-mode .topbar,
+.clinic-shell.dark-mode .card,
+.clinic-shell.dark-mode .add-form,
+.clinic-shell.dark-mode .calendar-panel,
+.clinic-shell.dark-mode .mini-calendar,
+.clinic-shell.dark-mode .profile-dropdown,
+.clinic-shell.dark-mode .rich-editor-area,
+.clinic-shell.dark-mode .rich-toolbar,
+.clinic-shell.dark-mode .schedule-card,
+.clinic-shell.dark-mode .schedule-empty,
+.clinic-shell.dark-mode .schedule-choice,
+.clinic-shell.dark-mode .photo-field,
+.clinic-shell.dark-mode .pending-list button {
+	border-color: #273149;
+	background: #151c2d;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .content,
+.clinic-shell.dark-mode .window-bar {
+	background: #101521;
+	border-color: #273149;
+}
+
+.clinic-shell.dark-mode input,
+.clinic-shell.dark-mode select,
+.clinic-shell.dark-mode textarea {
+	border-color: #2f3a55;
+	background: #111827;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .secondary-button,
+.clinic-shell.dark-mode .icon-button,
+.clinic-shell.dark-mode .mobile-menu-button,
+.clinic-shell.dark-mode .sidebar-close,
+.clinic-shell.dark-mode .rich-toolbar button,
+.clinic-shell.dark-mode .plan-card button {
+	border-color: #2f3a55;
+	background: #111827;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .search-box input,
+.clinic-shell.dark-mode .profile-dropdown button,
+.clinic-shell.dark-mode .user-menu,
+.clinic-shell.dark-mode .bell-button,
+.clinic-shell.dark-mode .calendar-head button,
+.clinic-shell.dark-mode .mini-head button,
+.clinic-shell.dark-mode .schedule-time strong,
+.clinic-shell.dark-mode .report-content {
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .section-title p,
+.clinic-shell.dark-mode .profile-head p,
+.clinic-shell.dark-mode .card p,
+.clinic-shell.dark-mode .card span,
+.clinic-shell.dark-mode .learner-list button span,
+.clinic-shell.dark-mode .report-list small,
+.clinic-shell.dark-mode .document-row span,
+.clinic-shell.dark-mode .photo-field p,
+.clinic-shell.dark-mode .photo-field small,
+.clinic-shell.dark-mode .pending-list span,
+.clinic-shell.dark-mode .empty-state,
+.clinic-shell.dark-mode .day-scheduler-head p,
+.clinic-shell.dark-mode .schedule-info p,
+.clinic-shell.dark-mode .schedule-info small,
+.clinic-shell.dark-mode .schedule-time span {
+	color: #aab4ca;
+}
+
+.clinic-shell.dark-mode .learner-list button,
+.clinic-shell.dark-mode .document-row,
+.clinic-shell.dark-mode .schedule-time,
+.clinic-shell.dark-mode .anamnese-files .document-row {
+	border-color: #273149;
+	background: #111827;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .side-nav button.active,
+.clinic-shell.dark-mode .detail-tabs button.active,
+.clinic-shell.dark-mode .filter-pills button.active,
+.clinic-shell.dark-mode .view-switch button.active {
+	background: #2b2154;
+	color: #c8b8ff;
+}
+
+.clinic-shell.dark-mode .mobile-menu-button span {
+	background: #eef2ff;
 }
 
 @media (max-width: 1180px) {
@@ -1012,5 +1283,94 @@ textarea:focus {
 
 	.learner-list b {
 		display: none;
+	}
+}
+
+@media (max-width: 900px) {
+	.app-frame {
+		grid-template-columns: 1fr;
+	}
+
+	.sidebar {
+		position: fixed;
+		inset: 0 auto 0 0;
+		z-index: 40;
+		width: min(84vw, 320px);
+		grid-template-rows: auto 1fr auto;
+		border-right: 1px solid #e8ebf0;
+		border-bottom: 0;
+		background: #fff;
+		box-shadow: 28px 0 60px rgba(30, 36, 48, 0.18);
+		transform: translateX(-110%);
+		transition: transform 180ms ease;
+	}
+
+	.sidebar.open {
+		transform: translateX(0);
+	}
+
+	.sidebar-close,
+	.mobile-menu-button {
+		display: grid;
+	}
+
+	.mobile-menu-button {
+		gap: 4px;
+	}
+
+	.sidebar-backdrop.visible {
+		position: fixed;
+		inset: 0;
+		z-index: 30;
+		display: block;
+		background: rgba(15, 23, 42, 0.44);
+	}
+
+	.topbar {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		gap: 12px;
+		padding: 14px 18px;
+	}
+
+	.search-box {
+		flex: 1 1 220px;
+		order: 2;
+		width: 100%;
+	}
+
+	.user-area {
+		margin-left: auto;
+		gap: 10px;
+	}
+
+	.user-avatar,
+	.bell-button {
+		display: none;
+	}
+
+	.profile-dropdown {
+		position: fixed;
+		right: 14px;
+		top: 70px;
+		width: min(280px, calc(100vw - 28px));
+	}
+
+	.learners-workspace,
+	.agenda-workspace {
+		grid-template-columns: 1fr;
+		padding: 20px;
+	}
+
+	.learners-column,
+	.detail-column {
+		border-right: 0;
+		padding: 20px 0;
+	}
+
+	.photo-field,
+	.schedule-title-row {
+		align-items: flex-start;
 	}
 }

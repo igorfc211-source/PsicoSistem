@@ -25,6 +25,7 @@
 </script>
 
 <section class="tab-panel">
+	<!-- Calendario do aprendente: seleciona uma visita especifica para edicao. -->
 	<CalendarPanel
 		days={calendarDays}
 		{monthLabel}
@@ -33,6 +34,7 @@
 		onSelectDate={onSelectCalendarDate}
 	/>
 
+	<!-- Editor da visita selecionada: altera horario, status, local e observacoes. -->
 	<VisitEditor
 		visit={selectedVisit}
 		onUpdateVisit={onUpdateVisit}

@@ -52,6 +52,7 @@ export type CoreActionPlanKey = Exclude<keyof ActionPlan, 'customFields'>;
 export type Learner = {
 	id: string;
 	name: string;
+	photoUrl: string;
 	gender: string;
 	guardian: string;
 	age: string;
@@ -71,6 +72,7 @@ export type Learner = {
 
 export type NewLearnerInput = {
 	name: string;
+	photoUrl: string;
 	gender: string;
 	guardian: string;
 	age: string;
@@ -87,6 +89,7 @@ export type CalendarDay = {
 	isToday: boolean;
 	isSelected: boolean;
 	eventCount: number;
+	pendingVisitCount: number;
 	visits: Visit[];
 };
 

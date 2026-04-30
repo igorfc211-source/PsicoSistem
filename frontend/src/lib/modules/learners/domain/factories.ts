@@ -29,6 +29,7 @@ export function createDefaultLearnerInput(): NewLearnerInput {
 
 	return {
 		name: '',
+		photoUrl: '',
 		gender: '',
 		guardian: '',
 		age: '',
@@ -46,6 +47,7 @@ export function createLearner(input: NewLearnerInput): Learner {
 	return {
 		id: createId('learner'),
 		name: input.name.trim(),
+		photoUrl: input.photoUrl,
 		gender: input.gender.trim(),
 		guardian: input.guardian.trim(),
 		age: input.age.trim(),

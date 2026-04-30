@@ -33,6 +33,7 @@
 </script>
 
 <div class="rich-editor">
+	<!-- Barra de ferramentas: comandos simples de formatacao para relatorios. -->
 	<div class="rich-toolbar" aria-label="Ferramentas de formatacao">
 		<button type="button" onclick={() => applyCommand('bold')}>Negrito</button>
 
@@ -59,6 +60,7 @@
 		</label>
 	</div>
 
+	<!-- Area editavel: mantem HTML formatado sincronizado com o componente pai. -->
 	<div
 		bind:this={editor}
 		class="rich-editor-area"

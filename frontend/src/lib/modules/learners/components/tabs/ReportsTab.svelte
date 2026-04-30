@@ -27,6 +27,7 @@
 </script>
 
 <section class="tab-panel">
+	<!-- Editor de novo relatorio: recebe HTML formatado do componente compartilhado. -->
 	<form class="report-form" onsubmit={handleSubmit}>
 		<RichTextEditor
 			value={reportText}
@@ -36,15 +37,19 @@
 		<button type="submit" class="primary-button">Salvar relatorio</button>
 	</form>
 
+	<!-- Historico de relatorios: mais recentes aparecem primeiro pelo fluxo da pagina. -->
 	<div class="report-list">
 		{#each reports as report}
 			<article class="card">
+				<!-- Cabecalho do registro: data de criacao e acao de exclusao. -->
 				<div>
 					<strong>{formatDateTime(report.createdAt)}</strong>
 					<button type="button" class="danger-button" onclick={() => onRemoveReport(report.id)}>
 						Excluir
 					</button>
 				</div>
+
+				<!-- Conteudo formatado salvo pelo editor rico. -->
 				<div class="report-content">{@html report.text}</div>
 				<small>
 					Feito em {formatDateTime(report.createdAt)} - atualizado em

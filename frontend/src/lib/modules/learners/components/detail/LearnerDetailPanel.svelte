@@ -8,8 +8,8 @@
 		PlanCategory,
 		Visit
 	} from '$lib/modules/learners';
-	import { getInitials } from '$lib/shared/formatters';
 	import { DETAIL_TABS, type DetailTab } from '../../presentation/types';
+	import LearnerAvatar from '../avatar/LearnerAvatar.svelte';
 	import ActionPlanTab from '../tabs/ActionPlanTab.svelte';
 	import AgendaTab from '../tabs/AgendaTab.svelte';
 	import AnamneseTab from '../tabs/AnamneseTab.svelte';
@@ -76,8 +76,9 @@
 
 <aside class="detail-column">
 	{#if learner}
+		<!-- Cabecalho do prontuario: identifica o aprendente e seu status clinico. -->
 		<div class="profile-head">
-			<div class="avatar large">{getInitials(learner.name)}</div>
+			<LearnerAvatar name={learner.name} photoUrl={learner.photoUrl} size="large" />
 			<div>
 				<div class="profile-title">
 					<h2>{learner.name}</h2>
@@ -88,6 +89,7 @@
 			</div>
 		</div>
 
+		<!-- Navegacao interna: cada aba isola uma area funcional do prontuario. -->
 		<nav class="detail-tabs" aria-label="Secoes do aprendente">
 			{#each DETAIL_TABS as tab}
 				<button
@@ -100,6 +102,7 @@
 			{/each}
 		</nav>
 
+		<!-- Conteudo da aba ativa: mantem cada secao separada em seu proprio componente. -->
 		{#if detailTab === 'resumo'}
 			<SummaryTab learner={learner} onOpenAgenda={() => onSelectTab('agenda')} />
 		{:else if detailTab === 'agenda'}
@@ -148,6 +151,7 @@
 			/>
 		{/if}
 	{:else}
+		<!-- Estado vazio da coluna de detalhe quando nenhum aprendente foi selecionado. -->
 		<div class="empty-state">Selecione ou adicione um aprendente.</div>
 	{/if}
 </aside>

@@ -69,6 +69,8 @@
 	let searchTerm = $state('');
 	let isUploading = $state(false);
 	let showAddForm = $state(false);
+	let isSidebarOpen = $state(false);
+	let theme = $state<'light' | 'dark'>('light');
 	let banner = $state<Banner | null>(null);
 
 	const filteredLearners = $derived(filterLearners(learners, searchTerm, learnerFilter));
@@ -102,6 +104,9 @@
 	const selectedDayItems = $derived(
 		buildDayScheduleItems(selectedAgendaDate, allVisits, agendaEvents)
 	);
+	const pendingVisits = $derived(
+		allVisits.filter(({ visit }) => visit.status === 'scheduled').slice(0, 12)
+	);
 	const monthLabel = $derived(formatMonth(currentMonth));
 	const currentDateLabel = $derived(formatLongDate(selectedAgendaDate));
 	const tenantName = $derived(session?.payload.tenant?.name ?? 'PsicoClinica');
@@ -120,7 +125,26 @@
 		learners = loadLearners();
 		agendaEvents = loadAgendaEvents();
 		selectedLearnerId = learners[0]?.id ?? null;
+		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
 	});
+
+	// Abre/fecha o menu lateral mobile sem afetar a navegacao desktop.
+	function toggleSidebar() {
+		isSidebarOpen = !isSidebarOpen;
+	}
+
+	// Fecha o menu lateral depois de selecionar uma secao no celular.
+	function closeSidebar() {
+		isSidebarOpen = false;
+	}
+
+	// Alterna tema claro/escuro e salva a preferencia local do usuario.
+	function toggleTheme() {
+		theme = theme === 'dark' ? 'light' : 'dark';
+		if (browser) {
+			localStorage.setItem('psicosistem.theme', theme);
+		}
+	}
 
 	// Persiste o snapshot de aprendentes sempre que uma operacao clinica muda o estado.
 	function persistLearners(nextLearners = learners) {
@@ -255,6 +279,7 @@
 	function selectSection(section: NavSection) {
 		activeSection = section;
 		showAddForm = false;
+		isSidebarOpen = false;
 
 		if (section === 'agenda') {
 			detailTab = 'agenda';
@@ -263,6 +288,26 @@
 		} else if (section === 'relatorios') {
 			detailTab = 'relatorios';
 		}
+	}
+
+	// Entrada do dropdown de perfil para conduzir o usuario ate configuracoes futuras.
+	function editProfile() {
+		activeSection = 'configuracoes';
+		showAddForm = false;
+		banner = {
+			tone: 'info',
+			text: 'Edicao de perfil pronta para conectar aos dados do usuario.'
+		};
+	}
+
+	// Abre a area de configuracoes a partir do menu de perfil.
+	function openSettings() {
+		activeSection = 'configuracoes';
+		showAddForm = false;
+		banner = {
+			tone: 'info',
+			text: 'Configuracoes da clinica e preferencias abertas.'
+		};
 	}
 
 	// Navega os calendarios mantendo a mesma data base para todas as secoes.
@@ -599,34 +644,55 @@
 </svelte:head>
 
 {#if !session}
+	<!-- Estado de carregamento antes de validar a sessao local. -->
 	<main class="loading-screen">
 		<p>Carregando sessao...</p>
 	</main>
 {:else}
-	<div class="clinic-shell">
+	<!-- Shell autenticado: concentra a estrutura visual usada em todo o painel. -->
+	<div class="clinic-shell" class:dark-mode={theme === 'dark'}>
+		<!-- Barra decorativa superior no estilo janela desktop. -->
 		<div class="window-bar">
 			<span></span>
 			<span></span>
 			<span></span>
 		</div>
 
+		<!-- Frame principal: menu lateral fixo + area de conteudo dinamica. -->
 		<div class="app-frame">
 			<AppSidebar
 				{tenantName}
 				{activeSection}
+				isOpen={isSidebarOpen}
 				onSelectSection={selectSection}
+				onClose={closeSidebar}
 			/>
 
+			<button
+				type="button"
+				class="sidebar-backdrop"
+				class:visible={isSidebarOpen}
+				aria-label="Fechar menu"
+				onclick={closeSidebar}
+			></button>
+
+			<!-- Conteudo da rota: topbar, feedback global e workspace ativo. -->
 			<section class="content">
 				<AppTopbar
 					{searchTerm}
 					{userName}
+					{theme}
+					onToggleSidebar={toggleSidebar}
 					onSearchTermChange={(value) => (searchTerm = value)}
+					onEditProfile={editProfile}
+					onOpenSettings={openSettings}
+					onToggleTheme={toggleTheme}
 					onLogout={logout}
 				/>
 
 				<WorkspaceBanner {banner} />
 
+				<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
 				{#if activeSection === 'agenda'}
 					<AgendaWorkspace
 						calendarDays={agendaCalendarDays}
@@ -637,6 +703,7 @@
 						{selectedLearnerId}
 						{userName}
 						dayItems={selectedDayItems}
+						{pendingVisits}
 						onShiftMonth={shiftMonth}
 						onSelectCalendarDate={handleCalendarDate}
 						onSelectLearnerId={selectLearnerInsideAgenda}
@@ -647,6 +714,7 @@
 						onRemoveEvent={removeAgendaEvent}
 					/>
 				{:else}
+					<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
 					<LearnersWorkspace
 						{activeSection}
 						{filteredLearners}

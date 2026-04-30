@@ -29,7 +29,7 @@ export function buildDayScheduleItems(
 			title: visit.title || 'Sessao individual',
 			subtitle: `${learner.name} - ${visit.location || 'Consultorio'}`,
 			kind: 'session',
-			tone: 'purple',
+			tone: visit.kind === 'assessment' ? 'blue' : visit.kind === 'return' ? 'green' : 'purple',
 			learner,
 			visit
 		}));
