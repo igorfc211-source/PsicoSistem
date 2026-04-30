@@ -18,6 +18,7 @@
 		onCreateSession,
 		onCreateEvent,
 		onOpenLearner,
+		onRemoveSession,
 		onRemoveEvent
 	} = $props<{
 		selectedDate: string;
@@ -28,6 +29,7 @@
 		onCreateSession: (input: NewSessionAppointmentInput) => boolean;
 		onCreateEvent: (input: NewAgendaEventInput) => boolean;
 		onOpenLearner: (id: string) => void;
+		onRemoveSession: (learnerId: string, visitId: string) => void;
 		onRemoveEvent: (event: AgendaEvent) => void;
 	}>();
 
@@ -121,6 +123,15 @@
 						<button type="button" class="secondary-button" onclick={() => onOpenLearner(item.learner!.id)}>
 							Abrir ficha
 						</button>
+						{#if item.visit}
+							<button
+								type="button"
+								class="danger-button"
+								onclick={() => onRemoveSession(item.learner!.id, item.visit!.id)}
+							>
+								Remover
+							</button>
+						{/if}
 					{:else if item.event}
 						<button type="button" class="danger-button" onclick={() => onRemoveEvent(item.event!)}>
 							Excluir

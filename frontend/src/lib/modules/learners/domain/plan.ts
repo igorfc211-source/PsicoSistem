@@ -1,7 +1,7 @@
-import type { ActionPlan } from './types';
+import type { CoreActionPlanKey } from './types';
 
 export type PlanCategory = {
-	key: keyof ActionPlan;
+	key: CoreActionPlanKey;
 	label: string;
 	description: string;
 };

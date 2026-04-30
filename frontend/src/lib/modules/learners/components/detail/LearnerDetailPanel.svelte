@@ -2,6 +2,7 @@
 	import type {
 		ActionPlan,
 		CalendarDay,
+		CoreActionPlanKey,
 		Learner,
 		LearnerDocument,
 		PlanCategory,
@@ -30,11 +31,17 @@
 		onSelectCalendarDate,
 		onUpdateLearner,
 		onUpdateActionPlan,
+		onAddCustomActionPlanField,
+		onUpdateCustomActionPlanField,
+		onRemoveCustomActionPlanField,
 		onUpdateVisit,
 		onRemoveVisit,
 		onUploadDocuments,
 		onDownloadDocument,
 		onRemoveDocument,
+		onUploadAnamneseDocuments,
+		onDownloadAnamneseDocument,
+		onRemoveAnamneseDocument,
 		onAddReport,
 		onRemoveReport
 	} = $props<{
@@ -50,12 +57,18 @@
 		onShiftMonth: (delta: number) => void;
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateLearner: (patch: Partial<Learner>) => void;
-		onUpdateActionPlan: (key: keyof ActionPlan, value: string) => void;
+		onUpdateActionPlan: (key: CoreActionPlanKey, value: string) => void;
+		onAddCustomActionPlanField: (label: string, description: string) => boolean;
+		onUpdateCustomActionPlanField: (fieldId: string, value: string) => void;
+		onRemoveCustomActionPlanField: (fieldId: string) => void;
 		onUpdateVisit: (visitId: string, patch: Partial<Visit>) => void;
 		onRemoveVisit: (visitId: string) => void;
 		onUploadDocuments: (event: Event) => void | Promise<void>;
 		onDownloadDocument: (document: LearnerDocument) => void | Promise<void>;
 		onRemoveDocument: (document: LearnerDocument) => void | Promise<void>;
+		onUploadAnamneseDocuments: (event: Event) => void | Promise<void>;
+		onDownloadAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
+		onRemoveAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
 		onAddReport: (text: string) => void;
 		onRemoveReport: (id: string) => void;
 	}>();
@@ -103,7 +116,12 @@
 		{:else if detailTab === 'anamnese'}
 			<AnamneseTab
 				value={learner.anamnese}
+				documents={learner.anamneseDocuments}
+				{isUploading}
 				onChange={(value) => onUpdateLearner({ anamnese: value })}
+				onUpload={onUploadAnamneseDocuments}
+				onDownload={onDownloadAnamneseDocument}
+				onRemove={onRemoveAnamneseDocument}
 			/>
 		{:else if detailTab === 'documentos'}
 			<DocumentsTab
@@ -118,6 +136,9 @@
 				actionPlan={learner.actionPlan}
 				categories={planCategories}
 				onChange={onUpdateActionPlan}
+				onAddCustomField={onAddCustomActionPlanField}
+				onChangeCustomField={onUpdateCustomActionPlanField}
+				onRemoveCustomField={onRemoveCustomActionPlanField}
 			/>
 		{:else}
 			<ReportsTab

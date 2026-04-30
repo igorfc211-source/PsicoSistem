@@ -6,6 +6,11 @@ export const LEARNERS_STORAGE_KEY = 'psicosistem.learners';
 // Corrige dados antigos do localStorage para o contrato atual do dominio.
 function normalizeLearner(learner: Partial<Learner>): Learner {
 	const now = new Date().toISOString();
+	const actionPlan = {
+		...createEmptyActionPlan(),
+		...(learner.actionPlan ?? {})
+	};
+	actionPlan.customFields = actionPlan.customFields ?? [];
 
 	return {
 		id: learner.id ?? '',
@@ -18,10 +23,8 @@ function normalizeLearner(learner: Partial<Learner>): Learner {
 		endDate: learner.endDate ?? '',
 		visitCount: learner.visitCount ?? learner.visits?.length ?? 0,
 		anamnese: learner.anamnese ?? '',
-		actionPlan: {
-			...createEmptyActionPlan(),
-			...(learner.actionPlan ?? {})
-		},
+		anamneseDocuments: learner.anamneseDocuments ?? [],
+		actionPlan,
 		visits: (learner.visits ?? []).map(normalizeVisit),
 		documents: learner.documents ?? [],
 		reports: learner.reports ?? [],

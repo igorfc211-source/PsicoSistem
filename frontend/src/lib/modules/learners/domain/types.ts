@@ -31,13 +31,23 @@ export type LearnerReport = {
 	updatedAt: string;
 };
 
+export type ActionPlanCustomField = {
+	id: string;
+	label: string;
+	description: string;
+	value: string;
+};
+
 export type ActionPlan = {
 	educationProcess: string;
 	familyGuidance: string;
 	cognitiveSkills: string;
 	behavior: string;
 	clinicGoals: string;
+	customFields: ActionPlanCustomField[];
 };
+
+export type CoreActionPlanKey = Exclude<keyof ActionPlan, 'customFields'>;
 
 export type Learner = {
 	id: string;
@@ -50,6 +60,7 @@ export type Learner = {
 	endDate: string;
 	visitCount: number;
 	anamnese: string;
+	anamneseDocuments: LearnerDocument[];
 	actionPlan: ActionPlan;
 	visits: Visit[];
 	documents: LearnerDocument[];

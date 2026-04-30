@@ -2,6 +2,8 @@ import type { NewSessionAppointmentInput } from '$lib/modules/scheduling';
 import { createId } from '../domain/factories';
 import type {
 	ActionPlan,
+	ActionPlanCustomField,
+	CoreActionPlanKey,
 	Learner,
 	LearnerDocument,
 	LearnerReport,
@@ -50,12 +52,53 @@ export function patchLearnerInList(
 // Altera uma secao do plano de acao sem recriar manualmente o objeto na rota.
 export function updateActionPlanValue(
 	actionPlan: ActionPlan,
-	key: keyof ActionPlan,
+	key: CoreActionPlanKey,
 	value: string
 ) {
 	return {
 		...actionPlan,
 		[key]: value
+	};
+}
+
+// Adiciona uma secao personalizada ao plano de acao sem alterar as secoes padrao.
+export function addCustomActionPlanField(
+	actionPlan: ActionPlan,
+	label: string,
+	description: string
+): ActionPlan {
+	const field: ActionPlanCustomField = {
+		id: createId('plan-field'),
+		label: label.trim(),
+		description: description.trim(),
+		value: ''
+	};
+
+	return {
+		...actionPlan,
+		customFields: [...actionPlan.customFields, field]
+	};
+}
+
+// Atualiza o conteudo de uma secao personalizada do plano.
+export function updateCustomActionPlanField(
+	actionPlan: ActionPlan,
+	fieldId: string,
+	value: string
+): ActionPlan {
+	return {
+		...actionPlan,
+		customFields: actionPlan.customFields.map((field) =>
+			field.id === fieldId ? { ...field, value } : field
+		)
+	};
+}
+
+// Remove uma secao personalizada quando ela deixa de fazer sentido no acompanhamento.
+export function removeCustomActionPlanField(actionPlan: ActionPlan, fieldId: string): ActionPlan {
+	return {
+		...actionPlan,
+		customFields: actionPlan.customFields.filter((field) => field.id !== fieldId)
 	};
 }
 
@@ -99,6 +142,18 @@ export function appendDocumentsToLearner(
 	return {
 		...learner,
 		documents: [...learner.documents, ...documents],
+		updatedAt: new Date().toISOString()
+	};
+}
+
+// Mantem anexos de anamnese separados dos documentos gerais do prontuario.
+export function appendAnamneseDocumentsToLearner(
+	learner: Learner,
+	documents: LearnerDocument[]
+): Learner {
+	return {
+		...learner,
+		anamneseDocuments: [...learner.anamneseDocuments, ...documents],
 		updatedAt: new Date().toISOString()
 	};
 }

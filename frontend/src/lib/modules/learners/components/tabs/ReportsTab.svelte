@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { LearnerReport } from '../../domain/types';
+	import { RichTextEditor } from '$lib/shared/components';
 	import { formatDateTime } from '$lib/shared/formatters';
 
 	let {
@@ -17,17 +18,21 @@
 	// Controla a criacao de relatorios para manter data/hora no fluxo central da pagina.
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		const text = reportText.trim();
+		const text = reportText.replace(/<[^>]*>/g, '').trim();
 		if (!text) return;
 
-		onAddReport(text);
+		onAddReport(reportText);
 		reportText = '';
 	}
 </script>
 
 <section class="tab-panel">
 	<form class="report-form" onsubmit={handleSubmit}>
-		<textarea bind:value={reportText} placeholder="Escreva um relatorio." required></textarea>
+		<RichTextEditor
+			value={reportText}
+			placeholder="Escreva um relatorio com formatacao."
+			onChange={(value) => (reportText = value)}
+		/>
 		<button type="submit" class="primary-button">Salvar relatorio</button>
 	</form>
 
@@ -40,7 +45,7 @@
 						Excluir
 					</button>
 				</div>
-				<p>{report.text}</p>
+				<div class="report-content">{@html report.text}</div>
 				<small>
 					Feito em {formatDateTime(report.createdAt)} - atualizado em
 					{formatDateTime(report.updatedAt)}

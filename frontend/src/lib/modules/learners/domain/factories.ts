@@ -16,7 +16,8 @@ export function createEmptyActionPlan(): ActionPlan {
 		familyGuidance: '',
 		cognitiveSkills: '',
 		behavior: '',
-		clinicGoals: ''
+		clinicGoals: '',
+		customFields: []
 	};
 }
 
@@ -53,6 +54,7 @@ export function createLearner(input: NewLearnerInput): Learner {
 		endDate: input.endDate,
 		visitCount: input.visitCount,
 		anamnese: '',
+		anamneseDocuments: [],
 		actionPlan: createEmptyActionPlan(),
 		visits: buildVisits(input.startDate, input.endDate, input.visitCount),
 		documents: [],

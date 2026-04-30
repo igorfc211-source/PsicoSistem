@@ -4,6 +4,7 @@
 	import type {
 		ActionPlan,
 		CalendarDay,
+		CoreActionPlanKey,
 		Learner,
 		LearnerDocument,
 		NewLearnerInput,
@@ -39,11 +40,17 @@
 		onSelectCalendarDate,
 		onUpdateLearner,
 		onUpdateActionPlan,
+		onAddCustomActionPlanField,
+		onUpdateCustomActionPlanField,
+		onRemoveCustomActionPlanField,
 		onUpdateVisit,
 		onRemoveVisit,
 		onUploadDocuments,
 		onDownloadDocument,
 		onRemoveDocument,
+		onUploadAnamneseDocuments,
+		onDownloadAnamneseDocument,
+		onRemoveAnamneseDocument,
 		onAddReport,
 		onRemoveReport
 	} = $props<{
@@ -69,12 +76,18 @@
 		onShiftMonth: (delta: number) => void;
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateLearner: (patch: Partial<Learner>) => void;
-		onUpdateActionPlan: (key: keyof ActionPlan, value: string) => void;
+		onUpdateActionPlan: (key: CoreActionPlanKey, value: string) => void;
+		onAddCustomActionPlanField: (label: string, description: string) => boolean;
+		onUpdateCustomActionPlanField: (fieldId: string, value: string) => void;
+		onRemoveCustomActionPlanField: (fieldId: string) => void;
 		onUpdateVisit: (visitId: string, patch: Partial<Visit>) => void;
 		onRemoveVisit: (visitId: string) => void;
 		onUploadDocuments: (event: Event) => void | Promise<void>;
 		onDownloadDocument: (document: LearnerDocument) => void | Promise<void>;
 		onRemoveDocument: (document: LearnerDocument) => void | Promise<void>;
+		onUploadAnamneseDocuments: (event: Event) => void | Promise<void>;
+		onDownloadAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
+		onRemoveAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
 		onAddReport: (text: string) => void;
 		onRemoveReport: (id: string) => void;
 	}>();
@@ -143,11 +156,17 @@
 		onSelectCalendarDate={onSelectCalendarDate}
 		onUpdateLearner={onUpdateLearner}
 		onUpdateActionPlan={onUpdateActionPlan}
+		onAddCustomActionPlanField={onAddCustomActionPlanField}
+		onUpdateCustomActionPlanField={onUpdateCustomActionPlanField}
+		onRemoveCustomActionPlanField={onRemoveCustomActionPlanField}
 		onUpdateVisit={onUpdateVisit}
 		onRemoveVisit={onRemoveVisit}
 		onUploadDocuments={onUploadDocuments}
 		onDownloadDocument={onDownloadDocument}
 		onRemoveDocument={onRemoveDocument}
+		onUploadAnamneseDocuments={onUploadAnamneseDocuments}
+		onDownloadAnamneseDocument={onDownloadAnamneseDocument}
+		onRemoveAnamneseDocument={onRemoveAnamneseDocument}
 		onAddReport={onAddReport}
 		onRemoveReport={onRemoveReport}
 	/>

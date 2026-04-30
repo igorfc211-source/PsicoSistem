@@ -24,6 +24,7 @@
 		onOpenLearner,
 		onCreateSession,
 		onCreateEvent,
+		onRemoveSession,
 		onRemoveEvent
 	} = $props<{
 		calendarDays: CalendarDay[];
@@ -40,6 +41,7 @@
 		onOpenLearner: (id: string) => void;
 		onCreateSession: (input: NewSessionAppointmentInput) => boolean;
 		onCreateEvent: (input: NewAgendaEventInput) => boolean;
+		onRemoveSession: (learnerId: string, visitId: string) => void;
 		onRemoveEvent: (event: AgendaEvent) => void;
 	}>();
 </script>
@@ -104,6 +106,7 @@
 			onCreateSession={onCreateSession}
 			onCreateEvent={onCreateEvent}
 			onOpenLearner={onOpenLearner}
+			onRemoveSession={onRemoveSession}
 			onRemoveEvent={onRemoveEvent}
 		/>
 	</div>

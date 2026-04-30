@@ -9,6 +9,8 @@
 	import { clearStoredSession, getStoredSession, type StoredSession } from '$lib/auth';
 	import {
 		PLAN_CATEGORIES,
+		addCustomActionPlanField,
+		appendAnamneseDocumentsToLearner,
 		appendDocumentsToLearner,
 		buildCalendarDays,
 		createId,
@@ -24,14 +26,16 @@
 		prepareDocumentBlob,
 		prependReportToLearner,
 		putDocumentBlob,
+		removeCustomActionPlanField,
 		removeReportFromLearner,
 		removeVisitFromList,
 		saveLearners,
 		sortVisitsBySchedule,
 		toDateInputValue,
 		updateActionPlanValue,
+		updateCustomActionPlanField,
 		updateVisitInList,
-		type ActionPlan,
+		type CoreActionPlanKey,
 		type DetailTab,
 		type Learner,
 		type LearnerDocument,
@@ -144,12 +148,56 @@
 	}
 
 	// Mantem as secoes do plano de acao independentes para facilitar novas categorias.
-	function updateActionPlan(key: keyof ActionPlan, value: string) {
+	function updateActionPlan(key: CoreActionPlanKey, value: string) {
 		if (!selectedLearner) return;
 
 		updateSelectedLearner({
 			actionPlan: updateActionPlanValue(selectedLearner.actionPlan, key, value)
 		});
+	}
+
+	// Adiciona campos personalizados no plano para clinicas que precisam de protocolos proprios.
+	function addCustomActionPlanFieldToSelected(label: string, description: string) {
+		if (!selectedLearner) return false;
+
+		if (!label.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o nome do novo campo do plano.'
+			};
+			return false;
+		}
+
+		updateSelectedLearner({
+			actionPlan: addCustomActionPlanField(selectedLearner.actionPlan, label, description)
+		});
+		banner = {
+			tone: 'success',
+			text: 'Campo adicionado ao plano de acao.'
+		};
+		return true;
+	}
+
+	// Atualiza apenas o campo personalizado editado, sem tocar nas secoes padrao.
+	function updateCustomActionPlanFieldForSelected(fieldId: string, value: string) {
+		if (!selectedLearner) return;
+
+		updateSelectedLearner({
+			actionPlan: updateCustomActionPlanField(selectedLearner.actionPlan, fieldId, value)
+		});
+	}
+
+	// Remove campos personalizados do plano quando a clinica nao precisa mais daquela secao.
+	function removeCustomActionPlanFieldFromSelected(fieldId: string) {
+		if (!selectedLearner) return;
+
+		updateSelectedLearner({
+			actionPlan: removeCustomActionPlanField(selectedLearner.actionPlan, fieldId)
+		});
+		banner = {
+			tone: 'success',
+			text: 'Campo removido do plano de acao.'
+		};
 	}
 
 	// Edita uma visita existente e reordena a agenda pelo campo de data.
@@ -247,6 +295,27 @@
 			visitCount: nextVisits.length
 		});
 		selectedVisitId = null;
+	}
+
+	// Remove uma sessao diretamente da agenda diaria, mesmo quando outro aprendente esta aberto.
+	function removeSessionAppointment(learnerId: string, visitId: string) {
+		const learner = learners.find((item) => item.id === learnerId);
+		if (!learner) return;
+
+		const nextVisits = removeVisitFromList(learner.visits, visitId);
+		updateLearnerById(learner.id, {
+			visits: nextVisits,
+			visitCount: nextVisits.length
+		});
+
+		if (selectedVisitId === visitId) {
+			selectedVisitId = null;
+		}
+
+		banner = {
+			tone: 'success',
+			text: 'Sessao removida da agenda.'
+		};
 	}
 
 	// Cria uma sessao com aprendente usando horarios precisos e dados de local/modalidade.
@@ -381,6 +450,61 @@
 		}
 	}
 
+	// Processa anexos especificos da anamnese mantendo-os separados dos documentos gerais.
+	async function handleAnamneseDocumentUpload(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const files = Array.from(input.files ?? []);
+		const targetLearner = selectedLearner;
+		if (!targetLearner || files.length === 0) return;
+
+		isUploading = true;
+		banner = {
+			tone: 'info',
+			text: 'Processando anexos da anamnese.'
+		};
+
+		try {
+			const uploadedDocuments: LearnerDocument[] = [];
+
+			for (const file of files) {
+				const prepared = await prepareDocumentBlob(file);
+				const documentId = createId('anam-doc');
+				await putDocumentBlob(getDocumentStorageKey(targetLearner.id, documentId), prepared.blob);
+
+				uploadedDocuments.push({
+					id: documentId,
+					name: file.name,
+					type: prepared.compressed ? 'application/gzip' : file.type || 'application/octet-stream',
+					size: file.size,
+					storedSize: prepared.blob.size,
+					compressed: prepared.compressed,
+					createdAt: new Date().toISOString()
+				});
+			}
+
+			const currentLearner = learners.find((learner) => learner.id === targetLearner.id);
+			if (currentLearner) {
+				const nextLearner = appendAnamneseDocumentsToLearner(currentLearner, uploadedDocuments);
+				updateLearnerById(targetLearner.id, {
+					anamneseDocuments: nextLearner.anamneseDocuments
+				});
+			}
+
+			banner = {
+				tone: 'success',
+				text: 'Anexo adicionado a anamnese.'
+			};
+			input.value = '';
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel anexar o arquivo.'
+			};
+		} finally {
+			isUploading = false;
+		}
+	}
+
 	// Recupera o blob do IndexedDB e dispara o download no navegador.
 	async function downloadDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
@@ -402,6 +526,27 @@
 		URL.revokeObjectURL(url);
 	}
 
+	// Baixa anexos da anamnese usando o mesmo cofre local de arquivos do prontuario.
+	async function downloadAnamneseDocument(document: LearnerDocument) {
+		if (!selectedLearner) return;
+
+		const blob = await getDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+		if (!blob) {
+			banner = {
+				tone: 'error',
+				text: 'Arquivo da anamnese nao encontrado.'
+			};
+			return;
+		}
+
+		const url = URL.createObjectURL(blob);
+		const anchor = window.document.createElement('a');
+		anchor.href = url;
+		anchor.download = document.compressed ? `${document.name}.gz` : document.name;
+		anchor.click();
+		URL.revokeObjectURL(url);
+	}
+
 	// Exclui o arquivo fisico local e remove seus metadados do aprendente.
 	async function removeDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
@@ -409,6 +554,16 @@
 		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
 		updateSelectedLearner({
 			documents: selectedLearner.documents.filter((item) => item.id !== document.id)
+		});
+	}
+
+	// Remove anexos da anamnese sem afetar os documentos gerais do aprendente.
+	async function removeAnamneseDocument(document: LearnerDocument) {
+		if (!selectedLearner) return;
+
+		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+		updateSelectedLearner({
+			anamneseDocuments: selectedLearner.anamneseDocuments.filter((item) => item.id !== document.id)
 		});
 	}
 
@@ -488,6 +643,7 @@
 						onOpenLearner={selectLearner}
 						onCreateSession={createSessionAppointment}
 						onCreateEvent={createEventAppointment}
+						onRemoveSession={removeSessionAppointment}
 						onRemoveEvent={removeAgendaEvent}
 					/>
 				{:else}
@@ -515,11 +671,17 @@
 						onSelectCalendarDate={handleCalendarDate}
 						onUpdateLearner={updateSelectedLearner}
 						onUpdateActionPlan={updateActionPlan}
+						onAddCustomActionPlanField={addCustomActionPlanFieldToSelected}
+						onUpdateCustomActionPlanField={updateCustomActionPlanFieldForSelected}
+						onRemoveCustomActionPlanField={removeCustomActionPlanFieldFromSelected}
 						onUpdateVisit={updateVisit}
 						onRemoveVisit={removeVisit}
 						onUploadDocuments={handleDocumentUpload}
 						onDownloadDocument={downloadDocument}
 						onRemoveDocument={removeDocument}
+						onUploadAnamneseDocuments={handleAnamneseDocumentUpload}
+						onDownloadAnamneseDocument={downloadAnamneseDocument}
+						onRemoveAnamneseDocument={removeAnamneseDocument}
 						onAddReport={addReport}
 						onRemoveReport={removeReport}
 					/>
