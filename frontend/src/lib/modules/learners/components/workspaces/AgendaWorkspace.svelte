@@ -124,6 +124,7 @@
 				<button type="button" class="active">Dia</button>
 				<button type="button">Semana</button>
 				<button type="button">Mes</button>
+				<button type="button">Ano</button>
 			</div>
 			<strong>{currentDateLabel}</strong>
 			<button type="button" class="primary-button" onclick={() => onSelectCalendarDate(selectedDate)}>
