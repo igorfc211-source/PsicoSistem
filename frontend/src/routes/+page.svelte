@@ -248,39 +248,6 @@
 </svelte:head>
 
 <main class="auth-shell">
-	<section class="brand-panel">
-		<div class="brand-chip">PsicoSistem</div>
-		<h1>Acesso clinico com checkout e trial no onboarding.</h1>
-		<p>
-			Login para a equipe e cadastro de clinica com CPF/CNPJ, telefone unico e trial de 1 mes no
-			plano intermediario.
-		</p>
-
-		<div class="route-card">
-			<strong>Rotas conectadas</strong>
-			<code>POST /v1/auth/login</code>
-			<code>POST /v1/auth/register</code>
-		</div>
-
-		<div class="highlights">
-			<div>
-				<span>01</span>
-				<strong>Sessao autenticada</strong>
-				<p>Ao entrar, a equipe vai direto para o painel principal da clinica.</p>
-			</div>
-			<div>
-				<span>02</span>
-				<strong>Trial intermediario</strong>
-				<p>O cadastro pode iniciar com 1 mes gratuito antes da cobranca.</p>
-			</div>
-			<div>
-				<span>03</span>
-				<strong>Camada antifraude</strong>
-				<p>CPF/CNPJ e telefone sao enviados ao backend no registro.</p>
-			</div>
-		</div>
-	</section>
-
 	<section class="auth-panel">
 		<div class="panel-header">
 			<div>
@@ -289,7 +256,11 @@
 			</div>
 
 			<div class="mode-switch" aria-label="Alternar formulario">
-				<button type="button" class:active={activeMode === 'login'} onclick={() => setMode('login')}>
+				<button
+					type="button"
+					class:active={activeMode === 'login'}
+					onclick={() => setMode('login')}
+				>
 					Login
 				</button>
 				<button
@@ -323,6 +294,8 @@
 					/>
 				</label>
 
+				
+
 				<label>
 					<span>Senha</span>
 					<input
@@ -335,7 +308,7 @@
 					/>
 				</label>
 
-				<button class="primary-button" type="submit" disabled={isSubmitting}>
+				<button class="primary-button mt-12" type="submit" disabled={isSubmitting}>
 					{isSubmitting ? 'Entrando...' : 'Entrar'}
 				</button>
 			</form>
@@ -513,11 +486,11 @@
 
 	.auth-shell {
 		box-sizing: border-box;
-		display: grid;
+		flex: auto;
 		grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
 		gap: 1rem;
 		min-height: 100vh;
-		padding: 1rem;
+		padding: 9rem;
 	}
 
 	.brand-panel,
