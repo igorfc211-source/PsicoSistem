@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"api-on/internal/auth"
+	"api-on/internal/learner"
 	"api-on/internal/permission"
 	"api-on/internal/shared/bootstrap"
 	"api-on/internal/shared/config"
@@ -45,6 +46,7 @@ func main() {
 	tenantRepo := repositories.TenantRepo
 	subscriptionRepo := repositories.SubscriptionRepo
 	userRepo := repositories.UserRepo
+	learnerRepo := repositories.LearnerRepo
 
 	authUsecase := auth.NewUsecase(tenantRepo, subscriptionRepo, userRepo, jwtSvc)
 	authHandler := auth.NewHandler(authUsecase)
@@ -52,6 +54,7 @@ func main() {
 	tenantHandler := tenant.NewHandler(tenant.NewUsecase(tenantRepo))
 	subscriptionHandler := subscription.NewHandler(subscription.NewUsecase(subscriptionRepo))
 	userHandler := user.NewHandler(user.NewUsecase(userRepo, subscriptionRepo))
+	learnerHandler := learner.NewHandler(learner.NewUsecase(learnerRepo, subscriptionRepo))
 	permissionHandler := permission.NewHandler(permission.NewUsecase(userRepo))
 	identityResolver := user.NewIdentityResolver(userRepo)
 
@@ -98,6 +101,15 @@ func main() {
 				userGroup.PATCH("/:id/permissions", permissionHandler.UpdateByUser)
 				userGroup.PATCH("/:id", userHandler.Update)
 				userGroup.DELETE("/:id", userHandler.Delete)
+			}
+
+			learnerGroup := internalGroup.Group("/learners")
+			{
+				learnerGroup.GET("", learnerHandler.List)
+				learnerGroup.POST("", learnerHandler.Create)
+				learnerGroup.GET("/:id", learnerHandler.Get)
+				learnerGroup.PATCH("/:id", learnerHandler.Update)
+				learnerGroup.DELETE("/:id", learnerHandler.Delete)
 			}
 		}
 	}

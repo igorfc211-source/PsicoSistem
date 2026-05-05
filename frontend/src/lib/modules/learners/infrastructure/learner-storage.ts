@@ -23,6 +23,7 @@ function normalizeLearner(learner: Partial<Learner>): Learner {
 		startDate: learner.startDate ?? '',
 		endDate: learner.endDate ?? '',
 		visitCount: learner.visitCount ?? learner.visits?.length ?? 0,
+		sessionPriceCents: normalizeAmountCents(learner.sessionPriceCents),
 		anamnese: learner.anamnese ?? '',
 		anamneseDocuments: learner.anamneseDocuments ?? [],
 		actionPlan,
@@ -32,6 +33,13 @@ function normalizeLearner(learner: Partial<Learner>): Learner {
 		createdAt: learner.createdAt ?? now,
 		updatedAt: learner.updatedAt ?? now
 	};
+}
+
+function normalizeAmountCents(value: unknown) {
+	const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+	if (!Number.isFinite(numericValue)) return 0;
+
+	return Math.max(0, Math.round(numericValue));
 }
 
 // Completa visitas antigas com campos profissionais de horario, titulo e local.

@@ -36,7 +36,8 @@ export function createDefaultLearnerInput(): NewLearnerInput {
 		status: 'active',
 		startDate: toDateInputValue(today),
 		endDate: toDateInputValue(nextMonth),
-		visitCount: 8
+		visitCount: 8,
+		sessionPriceCents: 0
 	};
 }
 
@@ -55,10 +56,11 @@ export function createLearner(input: NewLearnerInput): Learner {
 		startDate: input.startDate,
 		endDate: input.endDate,
 		visitCount: input.visitCount,
+		sessionPriceCents: normalizeAmountCents(input.sessionPriceCents),
 		anamnese: '',
 		anamneseDocuments: [],
 		actionPlan: createEmptyActionPlan(),
-		visits: buildVisits(input.startDate, input.endDate, input.visitCount),
+		visits: buildVisits(),
 		documents: [],
 		reports: [],
 		createdAt: now,
@@ -67,40 +69,17 @@ export function createLearner(input: NewLearnerInput): Learner {
 }
 
 // Distribui as visitas entre a data inicial e final para criar uma agenda base editavel.
-export function buildVisits(startDate: string, endDate: string, visitCount: number): Visit[] {
-	if (!startDate || !endDate || visitCount <= 0) return [];
-
-	const start = new Date(`${startDate}T12:00:00`);
-	const end = new Date(`${endDate}T12:00:00`);
-	if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
-		return [];
-	}
-
-	const totalDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
-	const spacing = visitCount === 1 ? 0 : totalDays / (visitCount - 1);
-
-	return Array.from({ length: visitCount }, (_, index) => {
-		const date = new Date(start);
-		date.setDate(start.getDate() + Math.round(spacing * index));
-		const startTime = buildDefaultVisitStartTime(index);
-
-		return {
-			id: createId('visit'),
-			date: toDateInputValue(date),
-			title: 'Sessao individual',
-			startTime,
-			endTime: addMinutesToTime(startTime, 50),
-			kind: 'session',
-			location: 'Consultorio',
-			status: 'scheduled',
-			notes: ''
-		};
-	});
+export function buildVisits() {
+	return [];
 }
-
 // Normaliza datas para o formato esperado por inputs nativos e chaves do calendario.
 export function toDateInputValue(date: Date) {
 	return date.toISOString().slice(0, 10);
+}
+
+function normalizeAmountCents(value: number) {
+	if (!Number.isFinite(value)) return 0;
+	return Math.max(0, Math.round(value));
 }
 
 // Sugere horarios comerciais variados para a agenda inicial nao ficar toda no mesmo horario.
@@ -110,13 +89,6 @@ function buildDefaultVisitStartTime(index: number) {
 	return minutesToTime(slotMinutes);
 }
 
-// Soma minutos a um horario HH:mm, usado para gerar duracoes padrao de sessao.
-export function addMinutesToTime(time: string, minutes: number) {
-	const [hour = '0', minute = '0'] = time.split(':');
-	const totalMinutes = Number(hour) * 60 + Number(minute) + minutes;
-
-	return minutesToTime(totalMinutes);
-}
 
 function minutesToTime(totalMinutes: number) {
 	const normalizedMinutes = ((totalMinutes % 1440) + 1440) % 1440;

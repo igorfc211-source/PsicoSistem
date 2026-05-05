@@ -67,3 +67,10 @@ export function formatFileSize(value: number) {
 	if (value >= 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
 	return `${Math.max(1, Math.round(value / 1024))} KB`;
 }
+
+export function formatCurrencyFromCents(value: number) {
+	return new Intl.NumberFormat('pt-BR', {
+		style: 'currency',
+		currency: 'BRL'
+	}).format(value / 100);
+}

@@ -14,7 +14,7 @@ import type { LearnerFilter } from '../presentation/types';
 // Filtra aprendentes por busca textual e status, mantendo a tela livre de regra de lista.
 export function filterLearners(
 	learners: Learner[],
-	searchTerm: string,
+	searchTerm: string, 
 	learnerFilter: LearnerFilter
 ) {
 	const query = searchTerm.trim().toLowerCase();

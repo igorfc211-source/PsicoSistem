@@ -60,6 +60,7 @@ export type Learner = {
 	startDate: string;
 	endDate: string;
 	visitCount: number;
+	sessionPriceCents: number;
 	anamnese: string;
 	anamneseDocuments: LearnerDocument[];
 	actionPlan: ActionPlan;
@@ -80,6 +81,7 @@ export type NewLearnerInput = {
 	startDate: string;
 	endDate: string;
 	visitCount: number;
+	sessionPriceCents: number;
 };
 
 export type CalendarDay = {
