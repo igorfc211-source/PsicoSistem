@@ -283,9 +283,9 @@
 
 		if (section === 'agenda') {
 			detailTab = 'agenda';
-		} else if (section === 'avaliacoes') {
+		} else if (section === 'financeiro') {
 			detailTab = 'anamnese';
-		} else if (section === 'relatorios') {
+		} else if (section === 'comunicacoes') {
 			detailTab = 'relatorios';
 		}
 	}
@@ -653,9 +653,7 @@
 	<div class="clinic-shell" class:dark-mode={theme === 'dark'}>
 		<!-- Barra decorativa superior no estilo janela desktop. -->
 		<div class="window-bar">
-			<span></span>
-			<span></span>
-			<span></span>
+			<p>PsicoSistem</p>
 		</div>
 
 		<!-- Frame principal: menu lateral fixo + area de conteudo dinamica. -->
@@ -668,6 +666,8 @@
 				onClose={closeSidebar}
 			/>
 
+
+				<!-- Componente teste -->
 			<button
 				type="button"
 				class="sidebar-backdrop"
@@ -713,7 +713,9 @@
 						onRemoveSession={removeSessionAppointment}
 						onRemoveEvent={removeAgendaEvent}
 					/>
+				
 				{:else}
+
 					<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
 					<LearnersWorkspace
 						{activeSection}
