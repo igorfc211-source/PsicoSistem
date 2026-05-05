@@ -11,8 +11,17 @@
 	}>();
 
 	let form = $state<NewLearnerInput>(createDefaultLearnerInput());
+	let sessionPriceValue = $state('');
 	let isProcessingPhoto = $state(false);
 	let photoError = $state('');
+
+	function parseCurrencyToCents(value: string) {
+		const normalizedValue = value.replace(/[^\d,.-]/g, '').replace(',', '.').trim();
+		const amount = Number(normalizedValue);
+		if (!Number.isFinite(amount)) return 0;
+
+		return Math.max(0, Math.round(amount * 100));
+	}
 
 	// Reduz a foto antes de salvar no localStorage, evitando imagens pesadas no cadastro.
 	function resizeLearnerPhoto(file: File) {
@@ -62,12 +71,19 @@
 		}
 	}
 
+	function handleSessionPriceInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		sessionPriceValue = input.value;
+		form.sessionPriceCents = parseCurrencyToCents(input.value);
+	}
+
 	// Envia uma copia do formulario para a pagina orquestradora validar e persistir.
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
 
 		if (onCreate({ ...form })) {
 			form = createDefaultLearnerInput();
+			sessionPriceValue = '';
 			isProcessingPhoto = false;
 		}
 	}
@@ -146,6 +162,17 @@
 		<label>
 			<span>Numero de visitas</span>
 			<input type="number" min="1" max="120" bind:value={form.visitCount} />
+		</label>
+
+		<label>
+			<span>Valor por sessao</span>
+			<input
+				type="text"
+				inputmode="decimal"
+				value={sessionPriceValue}
+				placeholder="150,00"
+				oninput={handleSessionPriceInput}
+			/>
 		</label>
 	</div>
 

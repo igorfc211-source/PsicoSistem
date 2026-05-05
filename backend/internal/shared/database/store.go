@@ -65,11 +65,29 @@ type SubscriptionRecord struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
+type LearnerRecord struct {
+	ID                string    `json:"id"`
+	TenantID          string    `json:"tenant_id"`
+	Name              string    `json:"name"`
+	PhotoURL          string    `json:"photo_url"`
+	Gender            string    `json:"gender"`
+	Guardian          string    `json:"guardian"`
+	Age               string    `json:"age"`
+	Status            string    `json:"status"`
+	StartDate         string    `json:"start_date"`
+	EndDate           string    `json:"end_date"`
+	VisitCount        int       `json:"visit_count"`
+	SessionPriceCents int64     `json:"session_price_cents"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
 type State struct {
 	Plans         map[string]PlanRecord         `json:"plans"`
 	Tenants       map[string]TenantRecord       `json:"tenants"`
 	Users         map[string]UserRecord         `json:"users"`
 	Subscriptions map[string]SubscriptionRecord `json:"subscriptions"`
+	Learners      map[string]LearnerRecord      `json:"learners"`
 }
 
 type Store struct {
@@ -179,6 +197,7 @@ func seedState() State {
 		Tenants:       make(map[string]TenantRecord),
 		Users:         make(map[string]UserRecord),
 		Subscriptions: make(map[string]SubscriptionRecord),
+		Learners:      make(map[string]LearnerRecord),
 	}
 	seedPlans(&state)
 	return state
@@ -196,6 +215,9 @@ func ensureMaps(state *State) {
 	}
 	if state.Subscriptions == nil {
 		state.Subscriptions = make(map[string]SubscriptionRecord)
+	}
+	if state.Learners == nil {
+		state.Learners = make(map[string]LearnerRecord)
 	}
 }
 

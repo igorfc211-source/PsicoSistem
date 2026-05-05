@@ -99,8 +99,25 @@ func (p *Postgres) EnsureSchema(ctx context.Context) error {
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS learners (
+			id UUID PRIMARY KEY,
+			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+			name TEXT NOT NULL,
+			photo_url TEXT NOT NULL DEFAULT '',
+			gender TEXT NOT NULL DEFAULT '',
+			guardian TEXT NOT NULL DEFAULT '',
+			age TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL,
+			start_date TEXT NOT NULL DEFAULT '',
+			end_date TEXT NOT NULL DEFAULT '',
+			visit_count INTEGER NOT NULL DEFAULT 0,
+			session_price_cents BIGINT NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users (tenant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_subscriptions_tenant_id ON subscriptions (tenant_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_learners_tenant_id ON learners (tenant_id)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_phone_unique ON tenants (phone)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_cnpj_unique ON tenants (cnpj) WHERE cnpj <> ''`,
 	}

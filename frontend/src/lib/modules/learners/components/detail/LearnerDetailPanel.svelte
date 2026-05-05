@@ -8,6 +8,7 @@
 		PlanCategory,
 		Visit
 	} from '$lib/modules/learners';
+	import { formatCurrencyFromCents } from '$lib/shared/formatters';
 	import { DETAIL_TABS, type DetailTab } from '../../presentation/types';
 	import LearnerAvatar from '../avatar/LearnerAvatar.svelte';
 	import ActionPlanTab from '../tabs/ActionPlanTab.svelte';
@@ -86,6 +87,12 @@
 				</div>
 				<p>{learner.age || 'Idade nao informada'} - {learner.gender || 'Genero nao informado'}</p>
 				<p>Responsavel: {learner.guardian || 'Nao informado'}</p>
+				<p>
+					Valor por sessao:
+					{learner.sessionPriceCents > 0
+						? formatCurrencyFromCents(learner.sessionPriceCents)
+						: 'Nao informado'}
+				</p>
 			</div>
 		</div>
 
