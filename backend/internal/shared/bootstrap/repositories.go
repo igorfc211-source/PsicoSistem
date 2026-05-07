@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"context"
 
+	"api-on/internal/guardian"
 	"api-on/internal/learner"
 	"api-on/internal/shared/config"
 	"api-on/internal/shared/database"
@@ -16,6 +17,7 @@ type Repositories struct {
 	SubscriptionRepo subscription.Repository
 	UserRepo         user.Repository
 	LearnerRepo      learner.Repository
+	GuardianRepo     guardian.Repository
 	Close            func()
 }
 
@@ -32,6 +34,7 @@ func BuildRepositories(ctx context.Context, cfg *config.Config) (*Repositories, 
 			SubscriptionRepo: subscription.NewPostgresRepository(postgresDB.Pool),
 			UserRepo:         user.NewPostgresRepository(postgresDB.Pool),
 			LearnerRepo:      learner.NewPostgresRepository(postgresDB.Pool),
+			GuardianRepo:     guardian.NewPostgresRepository(postgresDB.Pool),
 			Close:            postgresDB.Close,
 		}, nil
 	default:
@@ -45,6 +48,7 @@ func BuildRepositories(ctx context.Context, cfg *config.Config) (*Repositories, 
 			SubscriptionRepo: subscription.NewRepository(store),
 			UserRepo:         user.NewRepository(store),
 			LearnerRepo:      learner.NewRepository(store),
+			GuardianRepo:     guardian.NewRepository(store),
 			Close:            func() {},
 		}, nil
 	}

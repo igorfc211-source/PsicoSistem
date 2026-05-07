@@ -56,7 +56,33 @@ func (r *PostgresRepository) GetByIDAndTenant(ctx context.Context, tenantID uuid
 		WHERE id = $1 AND tenant_id = $2
 	`, learnerID, tenantID)
 
-	return scanLearner(row)
+	item, err := scanLearner(row)
+	if err != nil {
+		return nil, err
+	}
+
+	guardianIDs, err := r.loadGuardianIDsByLearner(ctx, tenantID, learnerID)
+	if err != nil {
+		return nil, err
+	}
+	item.GuardianIDs = guardianIDs
+
+	return item, nil
+}
+
+func (r *PostgresRepository) ExistsByIDAndTenant(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) (bool, error) {
+	row := r.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM learners WHERE id = $1 AND tenant_id = $2
+		)
+	`, learnerID, tenantID)
+
+	var exists bool
+	if err := row.Scan(&exists); err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, input ListInput) ([]Learner, int, error) {
@@ -88,6 +114,12 @@ func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUI
 		if err != nil {
 			return nil, 0, err
 		}
+
+		guardianIDs, err := r.loadGuardianIDsByLearner(ctx, tenantID, item.ID)
+		if err != nil {
+			return nil, 0, err
+		}
+		item.GuardianIDs = guardianIDs
 		items = append(items, *item)
 	}
 
@@ -203,4 +235,28 @@ func scanLearner(scanner learnerScanner) (*Learner, error) {
 	}
 
 	return &item, nil
+}
+
+func (r *PostgresRepository) loadGuardianIDsByLearner(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT guardian_id
+		FROM learner_guardians
+		WHERE tenant_id = $1 AND learner_id = $2
+		ORDER BY guardian_id ASC
+	`, tenantID, learnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	guardianIDs := make([]uuid.UUID, 0)
+	for rows.Next() {
+		var guardianID uuid.UUID
+		if err := rows.Scan(&guardianID); err != nil {
+			return nil, err
+		}
+		guardianIDs = append(guardianIDs, guardianID)
+	}
+
+	return guardianIDs, nil
 }

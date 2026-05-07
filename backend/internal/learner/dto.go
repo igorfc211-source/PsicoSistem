@@ -12,29 +12,31 @@ import (
 )
 
 type CreateInput struct {
-	Name              string `json:"name"`
-	PhotoURL          string `json:"photo_url"`
-	Gender            string `json:"gender"`
-	Guardian          string `json:"guardian"`
-	Age               string `json:"age"`
-	Status            string `json:"status"`
-	StartDate         string `json:"start_date"`
-	EndDate           string `json:"end_date"`
-	VisitCount        int    `json:"visit_count"`
-	SessionPriceCents int64  `json:"session_price_cents"`
+	Name              string      `json:"name"`
+	PhotoURL          string      `json:"photo_url"`
+	Gender            string      `json:"gender"`
+	Guardian          string      `json:"guardian"`
+	Age               string      `json:"age"`
+	Status            string      `json:"status"`
+	StartDate         string      `json:"start_date"`
+	EndDate           string      `json:"end_date"`
+	VisitCount        int         `json:"visit_count"`
+	SessionPriceCents int64       `json:"session_price_cents"`
+	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
 }
 
 type UpdateInput struct {
-	Name              string `json:"name"`
-	PhotoURL          string `json:"photo_url"`
-	Gender            string `json:"gender"`
-	Guardian          string `json:"guardian"`
-	Age               string `json:"age"`
-	Status            string `json:"status"`
-	StartDate         string `json:"start_date"`
-	EndDate           string `json:"end_date"`
-	VisitCount        int    `json:"visit_count"`
-	SessionPriceCents int64  `json:"session_price_cents"`
+	Name              string      `json:"name"`
+	PhotoURL          string      `json:"photo_url"`
+	Gender            string      `json:"gender"`
+	Guardian          string      `json:"guardian"`
+	Age               string      `json:"age"`
+	Status            string      `json:"status"`
+	StartDate         string      `json:"start_date"`
+	EndDate           string      `json:"end_date"`
+	VisitCount        int         `json:"visit_count"`
+	SessionPriceCents int64       `json:"session_price_cents"`
+	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
 }
 
 type ListInput struct {
@@ -45,20 +47,21 @@ type ListInput struct {
 }
 
 type Response struct {
-	ID                uuid.UUID `json:"id"`
-	TenantID          uuid.UUID `json:"tenant_id"`
-	Name              string    `json:"name"`
-	PhotoURL          string    `json:"photo_url"`
-	Gender            string    `json:"gender"`
-	Guardian          string    `json:"guardian"`
-	Age               string    `json:"age"`
-	Status            string    `json:"status"`
-	StartDate         string    `json:"start_date"`
-	EndDate           string    `json:"end_date"`
-	VisitCount        int       `json:"visit_count"`
-	SessionPriceCents int64     `json:"session_price_cents"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                uuid.UUID   `json:"id"`
+	TenantID          uuid.UUID   `json:"tenant_id"`
+	Name              string      `json:"name"`
+	PhotoURL          string      `json:"photo_url"`
+	Gender            string      `json:"gender"`
+	Guardian          string      `json:"guardian"`
+	Age               string      `json:"age"`
+	Status            string      `json:"status"`
+	StartDate         string      `json:"start_date"`
+	EndDate           string      `json:"end_date"`
+	VisitCount        int         `json:"visit_count"`
+	SessionPriceCents int64       `json:"session_price_cents"`
+	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
+	CreatedAt         time.Time   `json:"created_at"`
+	UpdatedAt         time.Time   `json:"updated_at"`
 }
 
 type ListMeta struct {
@@ -86,6 +89,7 @@ func ToResponse(item *Learner) *Response {
 		EndDate:           item.EndDate,
 		VisitCount:        item.VisitCount,
 		SessionPriceCents: item.SessionPriceCents,
+		GuardianIDs:       append([]uuid.UUID(nil), item.GuardianIDs...),
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}

@@ -82,12 +82,32 @@ type LearnerRecord struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
+type GuardianRecord struct {
+	ID        string    `json:"id"`
+	TenantID  string    `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Phone     string    `json:"phone"`
+	Address   string    `json:"address"`
+	CPF       string    `json:"cpf,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type LearnerGuardianRecord struct {
+	TenantID   string    `json:"tenant_id"`
+	LearnerID  string    `json:"learner_id"`
+	GuardianID string    `json:"guardian_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 type State struct {
-	Plans         map[string]PlanRecord         `json:"plans"`
-	Tenants       map[string]TenantRecord       `json:"tenants"`
-	Users         map[string]UserRecord         `json:"users"`
-	Subscriptions map[string]SubscriptionRecord `json:"subscriptions"`
-	Learners      map[string]LearnerRecord      `json:"learners"`
+	Plans                map[string]PlanRecord            `json:"plans"`
+	Tenants              map[string]TenantRecord          `json:"tenants"`
+	Users                map[string]UserRecord            `json:"users"`
+	Subscriptions        map[string]SubscriptionRecord    `json:"subscriptions"`
+	Learners             map[string]LearnerRecord         `json:"learners"`
+	Guardians            map[string]GuardianRecord        `json:"guardians"`
+	LearnerGuardianLinks map[string]LearnerGuardianRecord `json:"learner_guardian_links"`
 }
 
 type Store struct {
@@ -193,11 +213,13 @@ func (s *Store) save(state State) error {
 
 func seedState() State {
 	state := State{
-		Plans:         make(map[string]PlanRecord),
-		Tenants:       make(map[string]TenantRecord),
-		Users:         make(map[string]UserRecord),
-		Subscriptions: make(map[string]SubscriptionRecord),
-		Learners:      make(map[string]LearnerRecord),
+		Plans:                make(map[string]PlanRecord),
+		Tenants:              make(map[string]TenantRecord),
+		Users:                make(map[string]UserRecord),
+		Subscriptions:        make(map[string]SubscriptionRecord),
+		Learners:             make(map[string]LearnerRecord),
+		Guardians:            make(map[string]GuardianRecord),
+		LearnerGuardianLinks: make(map[string]LearnerGuardianRecord),
 	}
 	seedPlans(&state)
 	return state
@@ -219,6 +241,16 @@ func ensureMaps(state *State) {
 	if state.Learners == nil {
 		state.Learners = make(map[string]LearnerRecord)
 	}
+	if state.Guardians == nil {
+		state.Guardians = make(map[string]GuardianRecord)
+	}
+	if state.LearnerGuardianLinks == nil {
+		state.LearnerGuardianLinks = make(map[string]LearnerGuardianRecord)
+	}
+}
+
+func LearnerGuardianLinkKey(learnerID string, guardianID string) string {
+	return learnerID + ":" + guardianID
 }
 
 func seedPlans(state *State) {
