@@ -5,14 +5,21 @@
 	import { AppSidebar, AppTopbar, WorkspaceBanner } from '$lib/modules/clinic-shell/components';
 	import '$lib/modules/clinic-shell/styles/clinic-app.css';
 	import type { Banner, NavSection } from '$lib/modules/clinic-shell/types';
-	import { AgendaWorkspace, LearnersWorkspace } from '$lib/modules/learners/components';
+	import {
+		AgendaWorkspace,
+		CommunicationsWorkspace,
+		LearnersWorkspace
+	} from '$lib/modules/learners/components';
 	import { clearStoredSession, getStoredSession, type StoredSession } from '$lib/auth';
 	import {
 		PLAN_CATEGORIES,
+		addContactToFamily,
 		addCustomActionPlanField,
+		addResponsibleToFamily,
 		appendAnamneseDocumentsToLearner,
 		appendDocumentsToLearner,
 		buildCalendarDays,
+		createCommunicationFamily,
 		createId,
 		createLearner,
 		createReportEntry,
@@ -21,25 +28,39 @@
 		filterLearners,
 		getDocumentBlob,
 		getDocumentStorageKey,
+		isValidEmailAddress,
+		isValidInstagramHandle,
+		isValidPhoneNumber,
+		loadCommunicationFamilies,
+		loadHiddenCommunicationSourceKeys,
 		loadLearners,
 		patchLearnerInList,
 		prepareDocumentBlob,
 		prependReportToLearner,
 		putDocumentBlob,
+		removeContactFromFamily,
 		removeCustomActionPlanField,
 		removeReportFromLearner,
+		removeResponsibleFromFamily,
 		removeVisitFromList,
+		saveCommunicationFamilies,
+		saveHiddenCommunicationSourceKeys,
 		saveLearners,
 		sortVisitsBySchedule,
+		syncCommunicationFamiliesWithLearners,
 		toDateInputValue,
 		updateActionPlanValue,
 		updateCustomActionPlanField,
 		updateVisitInList,
+		type CommunicationFamily,
 		type CoreActionPlanKey,
 		type DetailTab,
 		type Learner,
 		type LearnerDocument,
 		type LearnerFilter,
+		type NewCommunicationContactInput,
+		type NewCommunicationFamilyInput,
+		type NewCommunicationResponsibleInput,
 		type NewLearnerInput,
 		type Visit
 	} from '$lib/learners';
@@ -58,8 +79,11 @@
 
 	let session = $state<StoredSession | null>(null);
 	let learners = $state<Learner[]>([]);
+	let communicationFamilies = $state<CommunicationFamily[]>([]);
+	let hiddenCommunicationSourceKeys = $state<string[]>([]);
 	let agendaEvents = $state<AgendaEvent[]>([]);
 	let selectedLearnerId = $state<string | null>(null);
+	let selectedFamilyId = $state<string | null>(null);
 	let activeSection = $state<NavSection>('aprendentes');
 	let learnerFilter = $state<LearnerFilter>('active');
 	let detailTab = $state<DetailTab>('resumo');
@@ -123,8 +147,16 @@
 
 		session = storedSession;
 		learners = loadLearners();
+		hiddenCommunicationSourceKeys = loadHiddenCommunicationSourceKeys();
+		communicationFamilies = syncCommunicationFamiliesWithLearners(
+			loadCommunicationFamilies(),
+			learners,
+			hiddenCommunicationSourceKeys
+		);
 		agendaEvents = loadAgendaEvents();
 		selectedLearnerId = learners[0]?.id ?? null;
+		selectedFamilyId = communicationFamilies[0]?.id ?? null;
+		saveCommunicationFamilies(communicationFamilies);
 		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
 	});
 
@@ -158,11 +190,41 @@
 		saveAgendaEvents(nextEvents);
 	}
 
+	// Persiste os cards de comunicacao, que funcionam como um mini-CRM de familias.
+	function persistCommunicationFamilies(nextFamilies = communicationFamilies) {
+		if (!browser) return;
+		saveCommunicationFamilies(nextFamilies);
+	}
+
+	function setCommunicationFamilies(
+		nextFamilies: CommunicationFamily[],
+		nextLearners = learners,
+		hiddenSourceKeys = hiddenCommunicationSourceKeys
+	) {
+		const syncedFamilies = syncCommunicationFamiliesWithLearners(
+			nextFamilies,
+			nextLearners,
+			hiddenSourceKeys
+		);
+		communicationFamilies = syncedFamilies;
+		persistCommunicationFamilies(syncedFamilies);
+
+		if (!selectedFamilyId || !syncedFamilies.some((family) => family.id === selectedFamilyId)) {
+			selectedFamilyId = syncedFamilies[0]?.id ?? null;
+		}
+	}
+
+	function syncFamiliesForLearners(nextLearners: Learner[]) {
+		if (!browser) return;
+		setCommunicationFamilies(communicationFamilies, nextLearners);
+	}
+
 	// Atualiza qualquer aprendente por id, mantendo a data de edicao em um unico lugar.
 	function updateLearnerById(learnerId: string, patch: Partial<Learner>) {
 		const nextLearners = patchLearnerInList(learners, learnerId, patch);
 		learners = nextLearners;
 		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
 	}
 
 	// Aplica mudancas no aprendente selecionado, usado por anamnese, documentos, plano e agenda.
@@ -251,6 +313,7 @@
 		detailTab = 'resumo';
 		showAddForm = false;
 		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
 
 		banner = {
 			tone: 'success',
@@ -266,6 +329,212 @@
 		detailTab = 'resumo';
 		selectedVisitId = null;
 		banner = null;
+	}
+
+	function selectFamily(id: string) {
+		selectedFamilyId = id;
+		banner = null;
+	}
+
+	function openLearnerResponsible(learner: Learner) {
+		let family = communicationFamilies.find((item) => item.learnerIds.includes(learner.id)) ?? null;
+
+		if (!family && learner.guardian.trim()) {
+			family = createCommunicationFamily({
+				familyName: buildFamilyNameFromLearner(learner),
+				responsibleName: learner.guardian,
+				responsiblePhone: '',
+				relationship: '',
+				learnerIds: [learner.id]
+			});
+			setCommunicationFamilies([family, ...communicationFamilies]);
+		}
+
+		if (family) {
+			selectedFamilyId = family.id;
+		}
+
+		activeSection = 'comunicacoes';
+		showAddForm = false;
+		banner = family
+			? null
+			: {
+					tone: 'info',
+					text: 'Informe um responsavel no cadastro do aprendente para abrir a comunicacao.'
+				};
+	}
+
+	function buildFamilyNameFromLearner(learner: Learner) {
+		const referenceName = learner.guardian.trim() || learner.name;
+		const tokens = referenceName.split(/\s+/).filter(Boolean);
+		const surname = tokens.at(-1) ?? 'Contato';
+
+		return `Familia ${surname}`;
+	}
+
+	function createCommunicationFamilyCard(input: NewCommunicationFamilyInput) {
+		if (!input.familyName.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o nome da familia ou casal.'
+			};
+			return false;
+		}
+
+		if (!input.responsibleName.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o responsavel principal.'
+			};
+			return false;
+		}
+
+		if (!isValidPhoneNumber(input.responsiblePhone)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		const createdFamily = createCommunicationFamily(input);
+		selectedFamilyId = createdFamily.id;
+		setCommunicationFamilies([createdFamily, ...communicationFamilies]);
+		banner = {
+			tone: 'success',
+			text: 'Card de comunicacao criado.'
+		};
+		return true;
+	}
+
+	function updateCommunicationFamily(familyId: string, patch: Partial<CommunicationFamily>) {
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId
+				? {
+						...family,
+						...patch,
+						updatedAt: new Date().toISOString()
+					}
+				: family
+		);
+		setCommunicationFamilies(nextFamilies);
+	}
+
+	function deleteCommunicationFamily(familyId: string) {
+		const removedFamily = communicationFamilies.find((family) => family.id === familyId);
+		const nextFamilies = communicationFamilies.filter((family) => family.id !== familyId);
+		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+
+		if (removedFamily?.sourceGuardianKey) {
+			nextHiddenSourceKeys = Array.from(
+				new Set([...hiddenCommunicationSourceKeys, removedFamily.sourceGuardianKey])
+			);
+			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+		}
+
+		setCommunicationFamilies(nextFamilies, learners, nextHiddenSourceKeys);
+		banner = {
+			tone: 'success',
+			text: 'Card de comunicacao removido.'
+		};
+	}
+
+	function addResponsibleToCommunicationFamily(
+		familyId: string,
+		input: NewCommunicationResponsibleInput
+	) {
+		if (!input.name.trim() || !input.phone.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe nome e numero do responsavel.'
+			};
+			return false;
+		}
+
+		if (!isValidPhoneNumber(input.phone)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? addResponsibleToFamily(family, input) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Responsavel adicionado ao card.'
+		};
+		return true;
+	}
+
+	function removeResponsibleFromCommunicationFamily(familyId: string, responsibleId: string) {
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? removeResponsibleFromFamily(family, responsibleId) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+	}
+
+	function addContactToCommunicationFamily(familyId: string, input: NewCommunicationContactInput) {
+		if (!input.value.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o contato que sera adicionado.'
+			};
+			return false;
+		}
+
+		if ((input.type === 'phone' || input.type === 'whatsapp') && !isValidPhoneNumber(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		if (input.type === 'instagram' && !isValidInstagramHandle(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um @ de Instagram valido.'
+			};
+			return false;
+		}
+
+		if (input.type === 'email' && !isValidEmailAddress(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um e-mail valido.'
+			};
+			return false;
+		}
+
+		if (input.type !== 'instagram' && !input.label.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o nome do contato.'
+			};
+			return false;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? addContactToFamily(family, input) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Contato adicionado ao card.'
+		};
+		return true;
+	}
+
+	function removeContactFromCommunicationFamily(familyId: string, contactId: string) {
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? removeContactFromFamily(family, contactId) : family
+		);
+		setCommunicationFamilies(nextFamilies);
 	}
 
 	// Troca o aprendente dentro da agenda sem tirar o usuario da visualizacao de calendario.
@@ -713,7 +982,21 @@
 						onRemoveSession={removeSessionAppointment}
 						onRemoveEvent={removeAgendaEvent}
 					/>
-				
+				{:else if activeSection === 'comunicacoes'}
+					<CommunicationsWorkspace
+						{learners}
+						families={communicationFamilies}
+						{selectedFamilyId}
+						{searchTerm}
+						onCreateFamily={createCommunicationFamilyCard}
+						onUpdateFamily={updateCommunicationFamily}
+						onDeleteFamily={deleteCommunicationFamily}
+						onAddResponsible={addResponsibleToCommunicationFamily}
+						onRemoveResponsible={removeResponsibleFromCommunicationFamily}
+						onAddContact={addContactToCommunicationFamily}
+						onRemoveContact={removeContactFromCommunicationFamily}
+						onSelectFamily={selectFamily}
+					/>
 				{:else}
 
 					<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
@@ -754,6 +1037,7 @@
 						onRemoveAnamneseDocument={removeAnamneseDocument}
 						onAddReport={addReport}
 						onRemoveReport={removeReport}
+						onOpenResponsible={openLearnerResponsible}
 					/>
 				{/if}
 			</section>

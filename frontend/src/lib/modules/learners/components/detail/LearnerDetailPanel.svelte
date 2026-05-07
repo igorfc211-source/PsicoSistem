@@ -44,7 +44,8 @@
 		onDownloadAnamneseDocument,
 		onRemoveAnamneseDocument,
 		onAddReport,
-		onRemoveReport
+		onRemoveReport,
+		onOpenResponsible
 	} = $props<{
 		learner: Learner | null;
 		detailTab: DetailTab;
@@ -72,6 +73,7 @@
 		onRemoveAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
 		onAddReport: (text: string) => void;
 		onRemoveReport: (id: string) => void;
+		onOpenResponsible: (learner: Learner) => void;
 	}>();
 </script>
 
@@ -86,7 +88,12 @@
 					<span class={learner.status}>{learner.status === 'active' ? 'Ativo' : 'Inativo'}</span>
 				</div>
 				<p>{learner.age || 'Idade nao informada'} - {learner.gender || 'Genero nao informado'}</p>
-				<p>Responsavel: {learner.guardian || 'Nao informado'}</p>
+				<div class="profile-responsible-row">
+					<p>Responsavel: {learner.guardian || 'Nao informado'}</p>
+					{#if learner.guardian}
+						<button type="button" onclick={() => onOpenResponsible(learner)}>Abrir</button>
+					{/if}
+				</div>
 				<p>
 					Valor por sessao:
 					{learner.sessionPriceCents > 0

@@ -52,7 +52,8 @@
 		onDownloadAnamneseDocument,
 		onRemoveAnamneseDocument,
 		onAddReport,
-		onRemoveReport
+		onRemoveReport,
+		onOpenResponsible
 	} = $props<{
 		activeSection: NavSection;
 		filteredLearners: Learner[];
@@ -90,6 +91,7 @@
 		onRemoveAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
 		onAddReport: (text: string) => void;
 		onRemoveReport: (id: string) => void;
+		onOpenResponsible: (learner: Learner) => void;
 	}>();
 </script>
 
@@ -175,5 +177,6 @@
 		onRemoveAnamneseDocument={onRemoveAnamneseDocument}
 		onAddReport={onAddReport}
 		onRemoveReport={onRemoveReport}
+		onOpenResponsible={onOpenResponsible}
 	/>
 </section>
