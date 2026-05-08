@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Visit, VisitKind, VisitStatus } from '../../domain/types';
-
+	import handleCalendarSection from '../../../../../routes/+page.svelte'
 	let {
 		visit,
 		onUpdateVisit,
@@ -14,7 +14,8 @@
 
 <div class="visit-editor card">
 	<!-- Cabecalho do editor: mostra a data ou orienta a selecionar um dia no calendario. -->
-	<h3>{visit ? visit.date : 'Selecione uma data'}</h3>
+	<h3 class="flex-1 ">{visit ? visit.date : 'Selecione uma data'}</h3>
+	<button onclick={ } class="w-4px bg-blue-600" >Definir agendamento</button>
 
 	{#if visit}
 		<!-- Dados principais da sessao selecionada. -->

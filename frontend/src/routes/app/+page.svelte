@@ -858,10 +858,19 @@
 
 		const existingVisit = selectedLearner?.visits.find((visit) => visit.date === date) ?? null;
 		selectedVisitId = existingVisit?.id ?? null;
+
 		detailTab = 'agenda';
 		showAddForm = false;
 		banner = null;
 	}
+
+
+	function handleCalendarSection(activeSection: String) {
+
+		activeSection = 'Agenda'
+		detailTab = 'agenda';
+	}
+	
 
 	// Remove uma visita e sincroniza a contagem exibida no cadastro do aprendente.
 	async function removeVisit(id: string) {
