@@ -530,23 +530,16 @@
 	}
 
 	function buildFamilyNameFromLearner(learner: Learner) {
-		const referenceName = getLearnerGuardianEntries(learner)[0]?.name ?? learner.name;
-		const tokens = referenceName.split(/\s+/).filter(Boolean);
-		const surname = tokens.at(-1) ?? 'Contato';
-
-		return `Familia ${surname}`;
+		return `Contatos de ${learner.name}`;
 	}
 
 	function createCommunicationFamilyCard(input: NewCommunicationFamilyInput) {
-		if (!input.familyName.trim()) {
-			banner = {
-				tone: 'error',
-				text: 'Informe o nome da familia ou casal.'
-			};
-			return false;
-		}
+		const normalizedInput = {
+			...input,
+			familyName: input.familyName.trim() || buildCommunicationFamilyName(input)
+		};
 
-		if (!input.responsibleName.trim()) {
+		if (!normalizedInput.responsibleName.trim()) {
 			banner = {
 				tone: 'error',
 				text: 'Informe o responsavel principal.'
@@ -554,7 +547,7 @@
 			return false;
 		}
 
-		if (!isValidPhoneNumber(input.responsiblePhone)) {
+		if (!isValidPhoneNumber(normalizedInput.responsiblePhone)) {
 			banner = {
 				tone: 'error',
 				text: 'Informe um numero com 10 ou 11 digitos.'
@@ -562,7 +555,7 @@
 			return false;
 		}
 
-		if (isResponsibleUsedInAnotherFamily(input.responsibleName)) {
+		if (isResponsibleUsedInAnotherFamily(normalizedInput.responsibleName)) {
 			banner = {
 				tone: 'error',
 				text: 'Esse responsavel ja possui um card de comunicacao.'
@@ -570,7 +563,7 @@
 			return false;
 		}
 
-		const createdFamily = createCommunicationFamily(input);
+		const createdFamily = createCommunicationFamily(normalizedInput);
 		const createdSourceKey = createdFamily.sourceGuardianKey;
 		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
 		if (createdSourceKey && hiddenCommunicationSourceKeys.includes(createdSourceKey)) {
@@ -586,6 +579,22 @@
 			text: 'Card de comunicacao criado.'
 		};
 		return true;
+	}
+
+	function buildCommunicationFamilyName(input: NewCommunicationFamilyInput) {
+		const linkedLearners = input.learnerIds
+			.map((learnerId) => learners.find((learner) => learner.id === learnerId))
+			.filter((learner): learner is Learner => Boolean(learner));
+
+		if (linkedLearners.length) {
+			const [firstLearner] = linkedLearners;
+			return linkedLearners.length === 1
+				? `Contatos de ${firstLearner.name}`
+				: `Contatos de ${firstLearner.name} +${linkedLearners.length - 1}`;
+		}
+
+		const responsibleName = input.responsibleName.trim();
+		return responsibleName ? `Contatos de ${responsibleName}` : 'Contatos do aprendente';
 	}
 
 	function updateCommunicationFamily(familyId: string, patch: Partial<CommunicationFamily>) {

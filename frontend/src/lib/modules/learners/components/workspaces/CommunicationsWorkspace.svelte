@@ -64,6 +64,7 @@
 	let learnerToAddId = $state('');
 	let selectedFamilyGuardianKey = $state('');
 	let selectedResponsibleGuardianKey = $state('');
+	const CREATE_RESPONSIBLE_OPTION = '__create_responsible__';
 
 	const filteredFamilies = $derived(
 		families
@@ -105,6 +106,7 @@
 	const selectedLearnersForFamilyInput = $derived(
 		learners.filter((learner: Learner) => familyInput.learnerIds.includes(learner.id))
 	);
+	const suggestedFamilyName = $derived(buildDefaultFamilyName(familyInput.learnerIds));
 	const guardianOptions = $derived(buildGuardianOptionsFromLearners(learners, families));
 	const usedResponsibleKeys = $derived(
 		new Set(families.flatMap((family: CommunicationFamily) => getCommunicationFamilyResponsibleKeys(family)))
@@ -112,10 +114,24 @@
 	const availableFamilyGuardianOptions = $derived(
 		guardianOptions.filter((option: GuardianOption) => !usedResponsibleKeys.has(option.key))
 	);
+	const selectedFamilyGuardianOptions = $derived(
+		availableFamilyGuardianOptions.filter(
+			(option: GuardianOption) =>
+				familyInput.learnerIds.length > 0 &&
+				option.learnerIds.some((learnerId) => familyInput.learnerIds.includes(learnerId))
+		)
+	);
+	const isCreatingFamilyResponsible = $derived(
+		selectedFamilyGuardianKey === CREATE_RESPONSIBLE_OPTION
+	);
 
 	function submitFamily(event: Event) {
 		event.preventDefault();
-		if (!onCreateFamily(familyInput)) return;
+		const input = {
+			...familyInput,
+			familyName: familyInput.familyName.trim() || suggestedFamilyName
+		};
+		if (!onCreateFamily(input)) return;
 
 		resetFamilyForm();
 		showFamilyForm = false;
@@ -177,10 +193,12 @@
 
 	function addSelectedLearnerToFamilyInput() {
 		if (!learnerToAddId || familyInput.learnerIds.includes(learnerToAddId)) return;
+		const nextLearnerIds = [...familyInput.learnerIds, learnerToAddId];
 
 		familyInput = {
 			...familyInput,
-			learnerIds: [...familyInput.learnerIds, learnerToAddId]
+			familyName: buildDefaultFamilyName(nextLearnerIds),
+			learnerIds: nextLearnerIds
 		};
 		learnerToAddId = '';
 	}
@@ -191,33 +209,68 @@
 	}
 
 	function removeLearnerFromFamilyInput(learnerId: string) {
+		const nextLearnerIds = familyInput.learnerIds.filter((id) => id !== learnerId);
+		const selectedGuardian = guardianOptions.find(
+			(option: GuardianOption) => option.key === selectedFamilyGuardianKey
+		);
+		const shouldClearResponsible =
+			nextLearnerIds.length === 0 ||
+			Boolean(
+				selectedGuardian &&
+					!selectedGuardian.learnerIds.some((id) => nextLearnerIds.includes(id))
+			);
+
+		if (shouldClearResponsible) {
+			selectedFamilyGuardianKey = '';
+		}
+
 		familyInput = {
 			...familyInput,
-			learnerIds: familyInput.learnerIds.filter((id) => id !== learnerId)
+			familyName: buildDefaultFamilyName(nextLearnerIds),
+			learnerIds: nextLearnerIds,
+			...(shouldClearResponsible
+				? {
+						responsibleName: '',
+						responsiblePhone: '',
+						relationship: ''
+					}
+				: {})
 		};
 	}
 
 	function handleFamilyGuardianSelection(event: Event) {
 		const key = (event.currentTarget as HTMLSelectElement).value;
 		selectedFamilyGuardianKey = key;
+		if (key === CREATE_RESPONSIBLE_OPTION) {
+			familyInput = {
+				...familyInput,
+				responsibleName: '',
+				responsiblePhone: '',
+				relationship: ''
+			};
+			return;
+		}
+
 		const option = guardianOptions.find((item: GuardianOption) => item.key === key);
 		if (!option) {
 			familyInput = {
 				...familyInput,
 				responsibleName: '',
 				relationship: '',
-				learnerIds: []
+				responsiblePhone: ''
 			};
 			return;
 		}
 
+		const nextLearnerIds = Array.from(new Set([...familyInput.learnerIds, ...option.learnerIds]));
+
 		familyInput = {
 			...familyInput,
-			familyName: familyInput.familyName || inferFamilyName(option.name),
+			familyName: buildDefaultFamilyName(nextLearnerIds),
 			responsibleName: option.name,
 			responsiblePhone: option.phone,
 			relationship: option.relationship,
-			learnerIds: Array.from(new Set([...familyInput.learnerIds, ...option.learnerIds]))
+			learnerIds: nextLearnerIds
 		};
 	}
 
@@ -353,27 +406,6 @@
 		return 'Nome do contato';
 	}
 
-	function getResponsibleSummary(family: CommunicationFamily) {
-		const names = family.responsibles
-			.map((responsible: CommunicationResponsible) => responsible.name.trim())
-			.filter(Boolean);
-
-		return formatCompactNameSummary(names, 'Sem responsavel');
-	}
-
-	function getLearnerSummary(linkedLearners: Learner[]) {
-		const names = linkedLearners.map((learner) => learner.name.trim()).filter(Boolean);
-
-		return formatCompactNameSummary(names, 'Nenhum aprendente vinculado');
-	}
-
-	function formatCompactNameSummary(names: string[], fallback: string) {
-		if (!names.length) return fallback;
-		if (names.length === 1) return names[0];
-
-		return `${names[0]} +${names.length - 1}`;
-	}
-
 	function getAvailableResponsibleOptions(family: CommunicationFamily) {
 		const blockedKeys = new Set<string>();
 		for (const item of families) {
@@ -387,11 +419,14 @@
 		);
 	}
 
-	function inferFamilyName(responsibleName: string) {
-		const tokens = responsibleName.split(/\s+/).filter(Boolean);
-		const surname = tokens.at(-1) ?? 'Contato';
+	function buildDefaultFamilyName(learnerIds: string[]) {
+		const linkedLearners = learners.filter((learner: Learner) => learnerIds.includes(learner.id));
+		const firstLearner = linkedLearners[0];
+		if (!firstLearner) return 'Contatos do aprendente';
 
-		return `Familia ${surname}`;
+		if (linkedLearners.length === 1) return `Contatos de ${firstLearner.name}`;
+
+		return `Contatos de ${firstLearner.name} +${linkedLearners.length - 1}`;
 	}
 
 	function getContactHref(type: ContactChannelType, value: string) {
@@ -430,86 +465,134 @@
 			onsubmit={submitFamily}
 			transition:fly={{ y: -14, duration: 180 }}
 		>
-			<div class="form-grid compact">
-				<label>
-					<span>Nome do card</span>
-					<input bind:value={familyInput.familyName} placeholder="Familia Silva" required />
-				</label>
-				<label>
-					<span>Responsavel disponivel</span>
-					<select
-						value={selectedFamilyGuardianKey}
-						onchange={handleFamilyGuardianSelection}
-						required
-						disabled={!availableFamilyGuardianOptions.length}
-					>
-						<option value="">
-							{availableFamilyGuardianOptions.length
-								? 'Selecione um responsavel'
-								: 'Todos os responsaveis ja possuem card'}
-						</option>
-						{#each availableFamilyGuardianOptions as option}
-							<option value={option.key}>
-								{option.name} - {option.learnerIds.length} aprendente{option.learnerIds.length === 1 ? '' : 's'}
-							</option>
-						{/each}
-					</select>
-				</label>
-				<label>
-					<span>Responsavel principal</span>
-					<input bind:value={familyInput.responsibleName} placeholder="Selecione acima" readonly required />
-				</label>
-				<label>
-					<span>Numero</span>
-					<input
-						value={formatPhoneInput(familyInput.responsiblePhone)}
-						inputmode="numeric"
-						pattern={'\\([0-9]{2}\\) [0-9]{4,5}-[0-9]{4}'}
-						maxlength="15"
-						required
-						placeholder="(11) 99999-9999"
-						title="Informe um numero no formato (xx) xxxxx-xxxx."
-						oninput={updateFamilyResponsiblePhone}
-					/>
-				</label>
-				<label>
-					<span>Parentesco</span>
-					<select bind:value={familyInput.relationship}>
-						<option value="">Selecione</option>
-						{#each RELATIONSHIP_OPTIONS as option}
-							<option value={option}>{option}</option>
-						{/each}
-					</select>
-				</label>
-			</div>
+			<div class="family-creator-flow">
+				<section class="family-step">
+					<span class="family-step-number">1</span>
+					<div class="family-step-field">
+						<label>
+							<span>Aprendente</span>
+							<select
+								value={learnerToAddId}
+								aria-label="Selecionar aprendente"
+								onchange={handleLearnerSelection}
+								required={!familyInput.learnerIds.length}
+							>
+								<option value="">
+									{availableLearnersForFamilyInput.length
+										? 'Selecione um aprendente'
+										: 'Todos os aprendentes foram vinculados'}
+								</option>
+								{#each availableLearnersForFamilyInput as learner}
+									<option value={learner.id}>{learner.name}</option>
+								{/each}
+							</select>
+						</label>
+						<div class="selected-learner-list">
+							{#if selectedLearnersForFamilyInput.length}
+								{#each selectedLearnersForFamilyInput as learner}
+									<span>
+										{learner.name}
+										<button
+											type="button"
+											aria-label={`Remover ${learner.name}`}
+											onclick={() => removeLearnerFromFamilyInput(learner.id)}
+										>
+											x
+										</button>
+									</span>
+								{/each}
+							{:else}
+								<p>Escolha primeiro o aprendente que sera atendido por esse contato.</p>
+							{/if}
+						</div>
+					</div>
+				</section>
 
-			<div class="learner-picker">
-				<span>Aprendentes vinculados</span>
-				<div class="learner-select-row">
-					<select value={learnerToAddId} aria-label="Selecionar aprendente" onchange={handleLearnerSelection}>
-						<option value="">Selecione um aprendente</option>
-						{#each availableLearnersForFamilyInput as learner}
-							<option value={learner.id}>{learner.name}</option>
-						{/each}
-					</select>
-				</div>
-				<div class="selected-learner-list">
-					{#if selectedLearnersForFamilyInput.length}
-						{#each selectedLearnersForFamilyInput as learner}
-							<span>
-								{learner.name}
-								<button
-									type="button"
-									aria-label={`Remover ${learner.name}`}
-									onclick={() => removeLearnerFromFamilyInput(learner.id)}
-								>
-									x
-								</button>
-							</span>
-						{/each}
-					{:else}
-						<p>Nenhum aprendente vinculado a este card.</p>
-					{/if}
+				<section class="family-step">
+					<span class="family-step-number">2</span>
+					<div class="family-step-field">
+						<label>
+							<span>Responsavel</span>
+							<select
+								value={selectedFamilyGuardianKey}
+								onchange={handleFamilyGuardianSelection}
+								required
+								disabled={!familyInput.learnerIds.length}
+							>
+								<option value="">
+									{familyInput.learnerIds.length
+										? 'Selecione ou crie um responsavel'
+										: 'Selecione um aprendente primeiro'}
+								</option>
+								{#each selectedFamilyGuardianOptions as option}
+									<option value={option.key}>
+										{option.name} - {option.relationship || 'Responsavel'}
+									</option>
+								{/each}
+								<option value={CREATE_RESPONSIBLE_OPTION}>Criar novo responsavel</option>
+							</select>
+						</label>
+
+						{#if isCreatingFamilyResponsible}
+							<label>
+								<span>Nome do responsavel</span>
+								<input
+									bind:value={familyInput.responsibleName}
+									placeholder="Nome completo"
+									required
+								/>
+							</label>
+						{:else}
+							<label>
+								<span>Responsavel selecionado</span>
+								<input
+									bind:value={familyInput.responsibleName}
+									placeholder="Selecione acima"
+									readonly
+									required
+								/>
+							</label>
+						{/if}
+					</div>
+				</section>
+
+				<section class="family-step">
+					<span class="family-step-number">3</span>
+					<div class="family-step-field">
+						<label>
+							<span>Numero</span>
+							<input
+								value={formatPhoneInput(familyInput.responsiblePhone)}
+								inputmode="numeric"
+								pattern={'\\([0-9]{2}\\) [0-9]{4,5}-[0-9]{4}'}
+								maxlength="15"
+								required
+								placeholder="(11) 99999-9999"
+								title="Informe um numero no formato (xx) xxxxx-xxxx."
+								oninput={updateFamilyResponsiblePhone}
+							/>
+						</label>
+					</div>
+				</section>
+
+				<section class="family-step">
+					<span class="family-step-number">4</span>
+					<div class="family-step-field">
+						<label>
+							<span>Parentesco</span>
+							<select bind:value={familyInput.relationship} required>
+								<option value="">Selecione</option>
+								{#each RELATIONSHIP_OPTIONS as option}
+									<option value={option}>{option}</option>
+								{/each}
+							</select>
+						</label>
+					</div>
+				</section>
+
+				<div class="family-name-preview">
+					<span>Nome automatico do card</span>
+					<strong>{familyInput.familyName.trim() || suggestedFamilyName}</strong>
 				</div>
 			</div>
 
@@ -524,7 +607,7 @@
 				>
 					Cancelar
 				</button>
-				<button type="submit" class="primary-button" disabled={!availableFamilyGuardianOptions.length}>
+				<button type="submit" class="primary-button" disabled={!familyInput.learnerIds.length}>
 					Criar card
 				</button>
 			</div>
@@ -567,16 +650,22 @@
 						aria-expanded={isSelected}
 						onclick={() => (isSelected ? closeFamilyCard() : onSelectFamily(family.id))}
 					>
-						<span>Familia</span>
+						<span class="family-card-kicker">CRM familiar</span>
 						<span class="family-status-badge">{getStageLabel(family.stage)}</span>
 						<span class="family-summary-title">{family.familyName}</span>
-						<span class="family-summary-line">
-							<span>Responsavel</span>
-							<strong>{getResponsibleSummary(family)}</strong>
-						</span>
-						<span class="family-summary-line">
-							<span>Aprendente</span>
-							<strong>{getLearnerSummary(linkedLearners)}</strong>
+						<span class="family-summary-metrics">
+							<span>
+								<strong>{family.responsibles.length}</strong>
+								responsave{family.responsibles.length === 1 ? 'l' : 'is'}
+							</span>
+							<span>
+								<strong>{linkedLearners.length}</strong>
+								aprendente{linkedLearners.length === 1 ? '' : 's'}
+							</span>
+							<span>
+								<strong>{family.contacts.length}</strong>
+								canal{family.contacts.length === 1 ? '' : 's'}
+							</span>
 						</span>
 					</button>
 

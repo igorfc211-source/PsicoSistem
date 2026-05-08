@@ -418,12 +418,11 @@ function createFamilyFromLearner(
 }
 
 function inferFamilyName(guardianName: string, learnerName: string) {
-	const referenceName = guardianName || learnerName;
-	const mainName = referenceName.split(/\s+e\s+|,|\/|&/i)[0]?.trim() ?? referenceName;
-	const tokens = mainName.split(/\s+/).filter(Boolean);
-	const surname = tokens.at(-1) ?? 'Contato';
+	const learnerReference = learnerName.trim();
+	if (learnerReference) return `Contatos de ${learnerReference}`;
 
-	return `Familia ${surname}`;
+	const guardianReference = guardianName.split(/\s+e\s+|,|\/|&/i)[0]?.trim() ?? guardianName;
+	return guardianReference ? `Contatos de ${guardianReference}` : 'Contatos do aprendente';
 }
 
 function normalizeIds(ids: string[]) {
