@@ -858,7 +858,6 @@
 
 		const existingVisit = selectedLearner?.visits.find((visit) => visit.date === date) ?? null;
 		selectedVisitId = existingVisit?.id ?? null;
-		activeSection = 'agenda';
 		detailTab = 'agenda';
 		showAddForm = false;
 		banner = null;

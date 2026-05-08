@@ -650,7 +650,7 @@
 						aria-expanded={isSelected}
 						onclick={() => (isSelected ? closeFamilyCard() : onSelectFamily(family.id))}
 					>
-						<span class="family-card-kicker">CRM familiar</span>
+						<span class="family-card-kicker">{family.familyName}</span>
 						<span class="family-status-badge">{getStageLabel(family.stage)}</span>
 						<span class="family-summary-title">{family.familyName}</span>
 						<span class="family-summary-metrics">
