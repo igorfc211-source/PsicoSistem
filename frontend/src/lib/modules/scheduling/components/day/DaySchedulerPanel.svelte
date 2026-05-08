@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import type { Learner, VisitKind } from '$lib/modules/learners';
 	import LearnerAvatar from '$lib/modules/learners/components/avatar/LearnerAvatar.svelte';
 	import {
@@ -47,6 +49,8 @@
 	let eventStartTime = $state('11:00');
 	let eventEndTime = $state('12:00');
 	let eventDescription = $state('');
+	let confirmation = $state<{ id: number; text: string } | null>(null);
+	let confirmationTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$effect(() => {
 		const preferredLearnerId = selectedLearnerId ?? learners[0]?.id ?? '';
@@ -91,6 +95,7 @@
 
 		if (created) {
 			sessionNotes = '';
+			showConfirmation('Sessao confirmada na agenda.');
 		}
 	}
 
@@ -109,8 +114,23 @@
 
 		if (created) {
 			eventDescription = '';
+			showConfirmation('Evento confirmado na agenda.');
 		}
 	}
+
+	function showConfirmation(text: string) {
+		if (confirmationTimer) clearTimeout(confirmationTimer);
+
+		confirmation = { id: Date.now(), text };
+		confirmationTimer = setTimeout(() => {
+			confirmation = null;
+			confirmationTimer = null;
+		}, 2200);
+	}
+
+	onDestroy(() => {
+		if (confirmationTimer) clearTimeout(confirmationTimer);
+	});
 </script>
 
 <section class="day-scheduler">
@@ -124,10 +144,18 @@
 		<strong>{dayItems.length} compromisso{dayItems.length === 1 ? '' : 's'}</strong>
 	</div>
 
+	{#if confirmation}
+		{#key confirmation.id}
+			<div class="schedule-confirmation" transition:fly={{ y: -12, duration: 180 }}>
+				{confirmation.text}
+			</div>
+		{/key}
+	{/if}
+
 	<!-- Linha do tempo: agrupa sessoes de aprendentes e eventos livres do mesmo dia. -->
 	<div class="schedule-list" aria-label="Compromissos do dia">
-		{#each dayItems as item}
-			<article class={`schedule-card ${item.kind} ${item.tone}`}>
+		{#each dayItems as item (item.id)}
+			<article class={`schedule-card ${item.kind} ${item.tone}`} in:fly={{ x: 24, duration: 220 }}>
 				<!-- Coluna de horario: deixa claro o intervalo de cada compromisso. -->
 				<div class="schedule-time">
 					<strong>{item.startTime}</strong>
@@ -213,7 +241,7 @@
 
 	{#if actionMode === 'session'}
 		<!-- Formulario de sessao: cria um compromisso dentro do prontuario do aprendente. -->
-		<form class="schedule-form card" onsubmit={handleCreateSession}>
+		<form class="schedule-form card" onsubmit={handleCreateSession} transition:fly={{ y: 12, duration: 170 }}>
 			<div class="form-grid">
 				<label>
 					<span>Aprendente</span>
@@ -264,7 +292,7 @@
 		</form>
 	{:else}
 		<!-- Formulario de evento livre: usado para reuniao, supervisao ou bloqueio de agenda. -->
-		<form class="schedule-form card" onsubmit={handleCreateEvent}>
+		<form class="schedule-form card" onsubmit={handleCreateEvent} transition:fly={{ y: 12, duration: 170 }}>
 			<div class="form-grid">
 				<label>
 					<span>Titulo do evento</span>

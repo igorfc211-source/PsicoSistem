@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAttendanceRate, getNextVisit, type Learner } from '$lib/modules/learners';
-	import { formatDateTime, formatLongDate } from '$lib/shared/formatters';
+	import { formatDateTime, formatLongDate, formatTimeForNBR } from '$lib/shared/formatters';
 
 	let {
 		learner,
@@ -11,6 +11,19 @@
 	}>();
 
 	const nextVisit = $derived(getNextVisit(learner));
+	const learnerMeetings = $derived(
+		[...learner.visits]
+			.sort((left, right) =>
+				`${left.date} ${left.startTime}`.localeCompare(`${right.date} ${right.startTime}`)
+			)
+			.slice(0, 6)
+	);
+
+	function getVisitStatusLabel(status: Learner['visits'][number]['status']) {
+		if (status === 'completed') return 'Realizada';
+		if (status === 'missed') return 'Falta';
+		return 'Agendada';
+	}
 </script>
 
 <section class="summary-grid">
@@ -40,6 +53,31 @@
 		<strong>Documentos</strong>
 		<div>{learner.documents.length}</div>
 		<p>Arquivos armazenados</p>
+	</div>
+
+	<!-- Reunioes/atendimentos do aprendente para enxergar a agenda direto no resumo. -->
+	<div class="card learner-meetings">
+		<div class="summary-card-head">
+			<strong>Reunioes do aprendente</strong>
+			<span>{learner.visits.length} registro{learner.visits.length === 1 ? '' : 's'}</span>
+		</div>
+
+		<div class="summary-meeting-list">
+			{#each learnerMeetings as visit}
+				<div class="summary-meeting-row">
+					<div>
+						<strong>{visit.title || 'Sessao individual'}</strong>
+						<span>
+							{formatLongDate(visit.date)} - {formatTimeForNBR(visit.startTime)} as
+							{formatTimeForNBR(visit.endTime)}
+						</span>
+					</div>
+					<small>{getVisitStatusLabel(visit.status)}</small>
+				</div>
+			{:else}
+				<p>Nenhuma reuniao registrada para este aprendente.</p>
+			{/each}
+		</div>
 	</div>
 
 	<!-- Ultimo relatorio como observacao rapida no resumo do aprendente. -->

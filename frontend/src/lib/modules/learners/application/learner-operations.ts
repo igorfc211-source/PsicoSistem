@@ -1,4 +1,5 @@
 import type { NewSessionAppointmentInput } from '$lib/modules/scheduling';
+import { getLearnerGuardianEntries } from '../domain/communications';
 import { createId } from '../domain/factories';
 import type {
 	ActionPlan,
@@ -22,7 +23,18 @@ export function filterLearners(
 	return learners.filter((learner) => {
 		const matchesSearch =
 			!query ||
-			[learner.name, learner.guardian, learner.gender, learner.age]
+			[
+				learner.name,
+				learner.guardian,
+				learner.guardianRelationship,
+				...getLearnerGuardianEntries(learner).flatMap((guardian) => [
+					guardian.name,
+					guardian.relationship,
+					guardian.phone
+				]),
+				learner.gender,
+				learner.age
+			]
 				.join(' ')
 				.toLowerCase()
 				.includes(query);

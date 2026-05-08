@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type { NavSection } from '$lib/modules/clinic-shell/types';
 	import { getSectionTitle } from '$lib/modules/clinic-shell/types';
 	import type {
 		ActionPlan,
 		CalendarDay,
 		CoreActionPlanKey,
+		GuardianOption,
 		Learner,
 		LearnerDocument,
 		NewLearnerInput,
@@ -22,6 +24,7 @@
 		selectedLearnerId,
 		selectedLearner,
 		learnerFilter,
+		guardianOptions,
 		showAddForm,
 		detailTab,
 		calendarDays,
@@ -33,6 +36,7 @@
 		onOpenAddForm,
 		onCloseAddForm,
 		onCreateLearner,
+		onDeleteLearner,
 		onSelectLearner,
 		onSetLearnerFilter,
 		onSelectTab,
@@ -60,6 +64,7 @@
 		selectedLearnerId: string | null;
 		selectedLearner: Learner | null;
 		learnerFilter: LearnerFilter;
+		guardianOptions: GuardianOption[];
 		showAddForm: boolean;
 		detailTab: DetailTab;
 		calendarDays: CalendarDay[];
@@ -71,6 +76,7 @@
 		onOpenAddForm: () => void;
 		onCloseAddForm: () => void;
 		onCreateLearner: (input: NewLearnerInput) => boolean;
+		onDeleteLearner: (learnerId: string) => void | Promise<void>;
 		onSelectLearner: (id: string) => void;
 		onSetLearnerFilter: (filter: LearnerFilter) => void;
 		onSelectTab: (tab: DetailTab) => void;
@@ -138,7 +144,13 @@
 
 		<!-- Formulario expansivel: fica perto da lista para manter o fluxo de cadastro curto. -->
 		{#if showAddForm}
-			<LearnerAddForm onCreate={onCreateLearner} onCancel={onCloseAddForm} />
+			<div class="motion-panel" transition:fly={{ y: -14, duration: 180 }}>
+				<LearnerAddForm
+					{guardianOptions}
+					onCreate={onCreateLearner}
+					onCancel={onCloseAddForm}
+				/>
+			</div>
 		{/if}
 
 		<!-- Lista navegavel de aprendentes; ao selecionar, o detalhe abre na coluna direita. -->
@@ -163,6 +175,7 @@
 		onShiftMonth={onShiftMonth}
 		onSelectCalendarDate={onSelectCalendarDate}
 		onUpdateLearner={onUpdateLearner}
+		onDeleteLearner={onDeleteLearner}
 		onUpdateActionPlan={onUpdateActionPlan}
 		onAddCustomActionPlanField={onAddCustomActionPlanField}
 		onUpdateCustomActionPlanField={onUpdateCustomActionPlanField}

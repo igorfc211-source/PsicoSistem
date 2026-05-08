@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type {
 		CommunicationFamily,
 		CommunicationContact,
 		CommunicationResponsible,
 		CommunicationStage,
 		ContactChannelType,
+		GuardianOption,
 		Learner,
 		NewCommunicationContactInput,
 		NewCommunicationFamilyInput,
@@ -13,7 +15,10 @@
 	import {
 		COMMUNICATION_STAGES,
 		CONTACT_CHANNEL_TYPES,
+		RELATIONSHIP_OPTIONS,
+		buildGuardianOptionsFromLearners,
 		getContactTypeLabel,
+		getCommunicationFamilyResponsibleKeys,
 		getFamilyLearners,
 		normalizeInstagramHandle,
 		normalizePhone
@@ -31,7 +36,8 @@
 		onRemoveResponsible,
 		onAddContact,
 		onRemoveContact,
-		onSelectFamily
+		onSelectFamily,
+		onCloseFamily
 	} = $props<{
 		learners: Learner[];
 		families: CommunicationFamily[];
@@ -45,6 +51,7 @@
 		onAddContact: (familyId: string, input: NewCommunicationContactInput) => boolean;
 		onRemoveContact: (familyId: string, contactId: string) => void;
 		onSelectFamily: (familyId: string) => void;
+		onCloseFamily: () => void;
 	}>();
 
 	let activeStage = $state<CommunicationStage | 'all'>('all');
@@ -55,22 +62,8 @@
 	let responsibleInput = $state<NewCommunicationResponsibleInput>(createEmptyResponsibleInput());
 	let contactInput = $state<NewCommunicationContactInput>(createEmptyContactInput());
 	let learnerToAddId = $state('');
-
-	const RELATIONSHIP_OPTIONS = [
-		'Mae',
-		'Pai',
-		'Responsavel legal',
-		'Avo',
-		'Avo materna',
-		'Avo paterna',
-		'Tia',
-		'Tio',
-		'Madrasta',
-		'Padrasto',
-		'Irma',
-		'Irmao',
-		'Outro'
-	];
+	let selectedFamilyGuardianKey = $state('');
+	let selectedResponsibleGuardianKey = $state('');
 
 	const filteredFamilies = $derived(
 		families
@@ -82,8 +75,6 @@
 				const linkedLearners = getFamilyLearners(family, learners);
 				const searchableText = [
 					family.familyName,
-					family.nextStep,
-					family.notes,
 					...family.responsibles.flatMap((responsible: CommunicationResponsible) => [
 						responsible.name,
 						responsible.relationship,
@@ -108,22 +99,25 @@
 	const linkedLearnerCount = $derived(
 		new Set(families.flatMap((family: CommunicationFamily) => family.learnerIds)).size
 	);
-	const familiesWithNextStep = $derived(
-		families.filter((family: CommunicationFamily) => family.nextStep.trim()).length
-	);
 	const availableLearnersForFamilyInput = $derived(
 		learners.filter((learner: Learner) => !familyInput.learnerIds.includes(learner.id))
 	);
 	const selectedLearnersForFamilyInput = $derived(
 		learners.filter((learner: Learner) => familyInput.learnerIds.includes(learner.id))
 	);
+	const guardianOptions = $derived(buildGuardianOptionsFromLearners(learners, families));
+	const usedResponsibleKeys = $derived(
+		new Set(families.flatMap((family: CommunicationFamily) => getCommunicationFamilyResponsibleKeys(family)))
+	);
+	const availableFamilyGuardianOptions = $derived(
+		guardianOptions.filter((option: GuardianOption) => !usedResponsibleKeys.has(option.key))
+	);
 
 	function submitFamily(event: Event) {
 		event.preventDefault();
 		if (!onCreateFamily(familyInput)) return;
 
-		familyInput = createEmptyFamilyInput();
-		learnerToAddId = '';
+		resetFamilyForm();
 		showFamilyForm = false;
 	}
 
@@ -132,6 +126,7 @@
 		if (!onAddResponsible(familyId, responsibleInput)) return;
 
 		responsibleInput = createEmptyResponsibleInput();
+		selectedResponsibleGuardianKey = '';
 		closeComposer();
 	}
 
@@ -148,6 +143,7 @@
 		composerFamilyId = familyId;
 		composerType = 'responsible';
 		responsibleInput = createEmptyResponsibleInput();
+		selectedResponsibleGuardianKey = '';
 	}
 
 	function openContactComposer(familyId: string) {
@@ -160,6 +156,23 @@
 	function closeComposer() {
 		composerFamilyId = null;
 		composerType = null;
+		selectedResponsibleGuardianKey = '';
+	}
+
+	function closeFamilyCard() {
+		closeComposer();
+		onCloseFamily();
+	}
+
+	function toggleFamilyForm() {
+		showFamilyForm = !showFamilyForm;
+		if (showFamilyForm) resetFamilyForm();
+	}
+
+	function resetFamilyForm() {
+		familyInput = createEmptyFamilyInput();
+		learnerToAddId = '';
+		selectedFamilyGuardianKey = '';
 	}
 
 	function addSelectedLearnerToFamilyInput() {
@@ -181,6 +194,47 @@
 		familyInput = {
 			...familyInput,
 			learnerIds: familyInput.learnerIds.filter((id) => id !== learnerId)
+		};
+	}
+
+	function handleFamilyGuardianSelection(event: Event) {
+		const key = (event.currentTarget as HTMLSelectElement).value;
+		selectedFamilyGuardianKey = key;
+		const option = guardianOptions.find((item: GuardianOption) => item.key === key);
+		if (!option) {
+			familyInput = {
+				...familyInput,
+				responsibleName: '',
+				relationship: '',
+				learnerIds: []
+			};
+			return;
+		}
+
+		familyInput = {
+			...familyInput,
+			familyName: familyInput.familyName || inferFamilyName(option.name),
+			responsibleName: option.name,
+			responsiblePhone: option.phone,
+			relationship: option.relationship,
+			learnerIds: Array.from(new Set([...familyInput.learnerIds, ...option.learnerIds]))
+		};
+	}
+
+	function handleResponsibleGuardianSelection(event: Event) {
+		const key = (event.currentTarget as HTMLSelectElement).value;
+		selectedResponsibleGuardianKey = key;
+		const option = guardianOptions.find((item: GuardianOption) => item.key === key);
+		if (!option) {
+			responsibleInput = createEmptyResponsibleInput();
+			return;
+		}
+
+		responsibleInput = {
+			name: option.name,
+			relationship: option.relationship,
+			phone: option.phone,
+			learnerIds: option.learnerIds
 		};
 	}
 
@@ -219,11 +273,6 @@
 		onUpdateFamily(familyId, { stage });
 	}
 
-	function updateFamilyText(familyId: string, field: 'nextStep' | 'notes', event: Event) {
-		const value = (event.currentTarget as HTMLInputElement | HTMLTextAreaElement).value;
-		onUpdateFamily(familyId, { [field]: value });
-	}
-
 	function createEmptyFamilyInput(): NewCommunicationFamilyInput {
 		return {
 			familyName: '',
@@ -238,7 +287,8 @@
 		return {
 			name: '',
 			relationship: '',
-			phone: ''
+			phone: '',
+			learnerIds: []
 		};
 	}
 
@@ -303,6 +353,47 @@
 		return 'Nome do contato';
 	}
 
+	function getResponsibleSummary(family: CommunicationFamily) {
+		const names = family.responsibles
+			.map((responsible: CommunicationResponsible) => responsible.name.trim())
+			.filter(Boolean);
+
+		return formatCompactNameSummary(names, 'Sem responsavel');
+	}
+
+	function getLearnerSummary(linkedLearners: Learner[]) {
+		const names = linkedLearners.map((learner) => learner.name.trim()).filter(Boolean);
+
+		return formatCompactNameSummary(names, 'Nenhum aprendente vinculado');
+	}
+
+	function formatCompactNameSummary(names: string[], fallback: string) {
+		if (!names.length) return fallback;
+		if (names.length === 1) return names[0];
+
+		return `${names[0]} +${names.length - 1}`;
+	}
+
+	function getAvailableResponsibleOptions(family: CommunicationFamily) {
+		const blockedKeys = new Set<string>();
+		for (const item of families) {
+			if (item.id === family.id) continue;
+			for (const key of getCommunicationFamilyResponsibleKeys(item)) blockedKeys.add(key);
+		}
+
+		const currentFamilyKeys = new Set(getCommunicationFamilyResponsibleKeys(family));
+		return guardianOptions.filter(
+			(option: GuardianOption) => !blockedKeys.has(option.key) && !currentFamilyKeys.has(option.key)
+		);
+	}
+
+	function inferFamilyName(responsibleName: string) {
+		const tokens = responsibleName.split(/\s+/).filter(Boolean);
+		const surname = tokens.at(-1) ?? 'Contato';
+
+		return `Familia ${surname}`;
+	}
+
 	function getContactHref(type: ContactChannelType, value: string) {
 		const cleanValue = value.trim();
 		if (!cleanValue) return '';
@@ -327,37 +418,46 @@
 		</div>
 
 		<div class="title-actions">
-			<button type="button" class="primary-button" onclick={() => (showFamilyForm = !showFamilyForm)}>
+			<button type="button" class="primary-button" onclick={toggleFamilyForm}>
 				+ Familia
 			</button>
 		</div>
 	</div>
 
-	<div class="crm-metrics" aria-label="Indicadores de comunicacao">
-		<div>
-			<span>Familias</span>
-			<strong>{families.length}</strong>
-		</div>
-		<div>
-			<span>Aprendentes ligados</span>
-			<strong>{linkedLearnerCount}</strong>
-		</div>
-		<div>
-			<span>Proximas acoes</span>
-			<strong>{familiesWithNextStep}</strong>
-		</div>
-	</div>
-
 	{#if showFamilyForm}
-		<form class="communication-form family-creator" onsubmit={submitFamily}>
+		<form
+			class="communication-form family-creator"
+			onsubmit={submitFamily}
+			transition:fly={{ y: -14, duration: 180 }}
+		>
 			<div class="form-grid compact">
 				<label>
 					<span>Nome do card</span>
 					<input bind:value={familyInput.familyName} placeholder="Familia Silva" required />
 				</label>
 				<label>
+					<span>Responsavel disponivel</span>
+					<select
+						value={selectedFamilyGuardianKey}
+						onchange={handleFamilyGuardianSelection}
+						required
+						disabled={!availableFamilyGuardianOptions.length}
+					>
+						<option value="">
+							{availableFamilyGuardianOptions.length
+								? 'Selecione um responsavel'
+								: 'Todos os responsaveis ja possuem card'}
+						</option>
+						{#each availableFamilyGuardianOptions as option}
+							<option value={option.key}>
+								{option.name} - {option.learnerIds.length} aprendente{option.learnerIds.length === 1 ? '' : 's'}
+							</option>
+						{/each}
+					</select>
+				</label>
+				<label>
 					<span>Responsavel principal</span>
-					<input bind:value={familyInput.responsibleName} placeholder="Marina Silva" required />
+					<input bind:value={familyInput.responsibleName} placeholder="Selecione acima" readonly required />
 				</label>
 				<label>
 					<span>Numero</span>
@@ -414,10 +514,19 @@
 			</div>
 
 			<div class="form-actions">
-				<button type="button" class="secondary-button" onclick={() => (showFamilyForm = false)}>
+				<button
+					type="button"
+					class="secondary-button"
+					onclick={() => {
+						resetFamilyForm();
+						showFamilyForm = false;
+					}}
+				>
 					Cancelar
 				</button>
-				<button type="submit" class="primary-button">Criar card</button>
+				<button type="submit" class="primary-button" disabled={!availableFamilyGuardianOptions.length}>
+					Criar card
+				</button>
 			</div>
 		</form>
 	{/if}
@@ -446,40 +555,51 @@
 		<div class="family-card-grid">
 			{#each filteredFamilies as family (family.id)}
 				{@const linkedLearners = getFamilyLearners(family, learners)}
+				{@const isSelected = selectedFamilyId === family.id}
 				<article
 					class="family-card"
-					class:selected={selectedFamilyId === family.id}
+					class:selected={isSelected}
 				>
-					<header>
-						<div>
-							<span>{getStageLabel(family.stage)}</span>
-							<h2>{family.familyName}</h2>
-						</div>
-						<div class="family-card-actions">
-							<select
-								value={family.stage}
-								onchange={(event) => updateFamilyStage(family.id, event)}
-								aria-label="Estagio da familia"
-							>
-								{#each COMMUNICATION_STAGES as stage}
-									<option value={stage.value}>{stage.label}</option>
-								{/each}
-							</select>
-							<button type="button" class="mini-action" onclick={() => onSelectFamily(family.id)}>
-								{selectedFamilyId === family.id ? 'Selecionado' : 'Selecionar'}
-							</button>
-						</div>
-					</header>
+					<button
+						type="button"
+						class="family-card-summary"
+						class:expanded={isSelected}
+						aria-expanded={isSelected}
+						onclick={() => (isSelected ? closeFamilyCard() : onSelectFamily(family.id))}
+					>
+						<span>Familia</span>
+						<span class="family-status-badge">{getStageLabel(family.stage)}</span>
+						<span class="family-summary-title">{family.familyName}</span>
+						<span class="family-summary-line">
+							<span>Responsavel</span>
+							<strong>{getResponsibleSummary(family)}</strong>
+						</span>
+						<span class="family-summary-line">
+							<span>Aprendente</span>
+							<strong>{getLearnerSummary(linkedLearners)}</strong>
+						</span>
+					</button>
 
-					<div class="learner-chips">
-						{#if linkedLearners.length}
-							{#each linkedLearners as learner}
-								<button type="button">{learner.name}</button>
-							{/each}
-						{:else}
-							<span>Nenhum aprendente vinculado</span>
-						{/if}
-					</div>
+					{#if isSelected}
+						<div class="family-card-details" transition:fly={{ y: -10, duration: 180 }}>
+							<header class="family-card-toolbar">
+								<div>
+									<span>Estagio</span>
+									<strong>{getStageLabel(family.stage)}</strong>
+								</div>
+								<div class="family-card-actions">
+									<select
+										value={family.stage}
+										onchange={(event) => updateFamilyStage(family.id, event)}
+										aria-label="Estagio da familia"
+									>
+										{#each COMMUNICATION_STAGES as stage}
+											<option value={stage.value}>{stage.label}</option>
+										{/each}
+									</select>
+									
+								</div>
+							</header>
 
 					<section class="family-block">
 						<div class="family-block-head">
@@ -513,14 +633,39 @@
 						</div>
 
 						{#if composerFamilyId === family.id && composerType === 'responsible'}
+							{@const responsibleOptions = getAvailableResponsibleOptions(family)}
 							<form
 								class="inline-composer"
 								onsubmit={(event) => submitResponsible(event, family.id)}
 							>
 								<div class="form-grid compact">
 									<label>
+										<span>Responsavel disponivel</span>
+										<select
+											value={selectedResponsibleGuardianKey}
+											onchange={handleResponsibleGuardianSelection}
+											required
+											disabled={!responsibleOptions.length || family.responsibles.length >= 2}
+										>
+											<option value="">
+												{family.responsibles.length >= 2
+													? 'Limite de dois responsaveis'
+													: responsibleOptions.length
+														? 'Selecione um responsavel'
+														: 'Nenhum responsavel disponivel'}
+											</option>
+											{#each responsibleOptions as option}
+												<option value={option.key}>
+													{option.name} - {option.learnerIds.length} aprendente{option.learnerIds.length === 1
+														? ''
+														: 's'}
+												</option>
+											{/each}
+										</select>
+									</label>
+									<label>
 										<span>Nome</span>
-										<input bind:value={responsibleInput.name} placeholder="Joao Silva" required />
+										<input bind:value={responsibleInput.name} placeholder="Selecione acima" readonly required />
 									</label>
 									<label>
 										<span>Numero</span>
@@ -547,7 +692,13 @@
 								</div>
 								<div class="form-actions">
 									<button type="button" class="secondary-button" onclick={closeComposer}>Cancelar</button>
-									<button type="submit" class="primary-button">Adicionar</button>
+									<button
+										type="submit"
+										class="primary-button"
+										disabled={!responsibleOptions.length || family.responsibles.length >= 2}
+									>
+										Adicionar
+									</button>
 								</div>
 							</form>
 						{/if}
@@ -661,25 +812,6 @@
 						{/if}
 					</section>
 
-					<section class="family-block crm-followup">
-						<label>
-							<span>Proximo passo</span>
-							<input
-								value={family.nextStep}
-								placeholder="Enviar combinados da semana"
-								onchange={(event) => updateFamilyText(family.id, 'nextStep', event)}
-							/>
-						</label>
-						<label>
-							<span>Notas</span>
-							<textarea
-								value={family.notes}
-								placeholder="Historico rapido do relacionamento com a familia"
-								onchange={(event) => updateFamilyText(family.id, 'notes', event)}
-							></textarea>
-						</label>
-					</section>
-
 					<footer>
 						<span>{linkedLearners.length} aprendente{linkedLearners.length === 1 ? '' : 's'}</span>
 						<button
@@ -690,6 +822,8 @@
 							Remover card
 						</button>
 					</footer>
+						</div>
+					{/if}
 				</article>
 			{/each}
 		</div>

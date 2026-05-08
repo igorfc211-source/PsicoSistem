@@ -335,6 +335,17 @@ button {
 	overflow: auto;
 }
 
+.motion-panel,
+.detail-motion,
+.tab-motion {
+	min-width: 0;
+}
+
+.motion-panel,
+.detail-motion {
+	display: grid;
+}
+
 .section-title,
 .title-actions,
 .profile-head,
@@ -411,6 +422,113 @@ h3 {
 	color: #b24a38;
 }
 
+.confirmation-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 80;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+}
+
+.confirmation-backdrop {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+	background: rgba(16, 22, 34, 0.52);
+	backdrop-filter: blur(7px);
+	cursor: pointer;
+	padding: 0;
+}
+
+.confirmation-dialog {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	width: min(460px, calc(100vw - 32px));
+	gap: 18px;
+	border: 1px solid rgba(112, 71, 245, 0.22);
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: 0 28px 90px rgba(16, 22, 34, 0.26);
+	padding: 22px;
+	animation: confirmation-enter 0.16s ease-out;
+}
+
+.confirmation-icon {
+	display: grid;
+	width: 44px;
+	height: 44px;
+	place-items: center;
+	border-radius: 8px;
+	background: #fff0ed;
+	color: #b24a38;
+	font-size: 1.35rem;
+	font-weight: 950;
+}
+
+.confirmation-copy {
+	display: grid;
+	gap: 8px;
+}
+
+.confirmation-copy span {
+	color: #7047f5;
+	font-size: 0.76rem;
+	font-weight: 900;
+	letter-spacing: 0;
+	text-transform: uppercase;
+}
+
+.confirmation-copy h2 {
+	color: #1e2430;
+	font-size: 1.25rem;
+	line-height: 1.2;
+}
+
+.confirmation-copy p {
+	color: #5f6878;
+	line-height: 1.55;
+}
+
+.confirmation-actions {
+	display: flex;
+	grid-column: 1 / -1;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.danger-button.confirmation-danger {
+	background: #b24a38;
+	color: #fff;
+	box-shadow: 0 14px 30px rgba(178, 74, 56, 0.24);
+}
+
+@keyframes confirmation-enter {
+	from {
+		opacity: 0;
+		transform: translateY(12px) scale(0.98);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+button:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
+}
+
+input[readonly] {
+	background: #f8f9fc;
+	color: #5d6678;
+}
+
 .filter-pills,
 .detail-tabs,
 .view-switch {
@@ -475,6 +593,38 @@ h3 {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px;
+}
+
+.guardian-form-section {
+	display: grid;
+	grid-column: 1 / -1;
+	gap: 12px;
+	border: 1px solid #eef0f5;
+	border-radius: 8px;
+	background: #fbfcff;
+	padding: 14px;
+}
+
+.guardian-form-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.guardian-form-head span {
+	border-radius: 999px;
+	background: #f0eaff;
+	color: #7047f5;
+	font-size: 0.78rem;
+	font-weight: 900;
+	padding: 6px 9px;
+}
+
+.guardian-form-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
 }
 
 .form-grid {
@@ -595,12 +745,28 @@ textarea:focus {
 	gap: 10px;
 }
 
+.profile-responsible-list {
+	display: grid;
+	gap: 4px;
+}
+
 .profile-responsible-row button {
 	border-radius: 8px;
 	background: #eef5ff;
 	color: #3f64cc;
 	font-weight: 850;
 	padding: 8px 11px;
+}
+
+.profile-head-actions {
+	align-self: flex-start;
+	display: flex;
+	justify-content: flex-end;
+	margin-left: auto;
+}
+
+.profile-head-actions .danger-button {
+	white-space: nowrap;
 }
 
 .detail-tabs {
@@ -635,6 +801,7 @@ textarea:focus {
 }
 
 .next-session,
+.learner-meetings,
 .observations {
 	grid-column: 1 / -1;
 }
@@ -652,6 +819,63 @@ textarea:focus {
 	font-size: 2rem;
 	font-weight: 900;
 	margin: 16px 0 8px;
+}
+
+.learner-meetings {
+	display: grid;
+	gap: 14px;
+}
+
+.summary-card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.summary-card-head span {
+	border-radius: 999px;
+	background: #f0eaff;
+	color: #7047f5;
+	font-size: 0.82rem;
+	font-weight: 900;
+	padding: 7px 10px;
+}
+
+.summary-meeting-list {
+	display: grid;
+	gap: 10px;
+}
+
+.summary-meeting-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	border: 1px solid #eef0f5;
+	border-radius: 8px;
+	background: #fbfcff;
+	padding: 12px;
+}
+
+.summary-meeting-row div {
+	display: grid;
+	gap: 4px;
+}
+
+.summary-meeting-row span,
+.summary-meeting-list p {
+	color: #6b7383;
+	font-size: 0.88rem;
+}
+
+.summary-meeting-row small {
+	border-radius: 999px;
+	background: #f0eaff;
+	color: #7047f5;
+	font-weight: 900;
+	padding: 6px 9px;
+	white-space: nowrap;
 }
 
 .calendar-panel,
@@ -971,6 +1195,16 @@ textarea:focus {
 	padding: 8px 12px;
 }
 
+.schedule-confirmation {
+	border: 1px solid rgba(112, 71, 245, 0.24);
+	border-radius: 12px;
+	background: #f0eaff;
+	color: #7047f5;
+	font-weight: 900;
+	padding: 12px 14px;
+	box-shadow: 0 14px 26px rgba(112, 71, 245, 0.12);
+}
+
 .schedule-list {
 	display: grid;
 	gap: 12px;
@@ -1272,8 +1506,9 @@ textarea:focus {
 
 .family-card-grid {
 	display: grid;
-	grid-auto-columns: 380px;
+	grid-auto-columns: max-content;
 	grid-auto-flow: column;
+	align-items: start;
 	gap: 16px;
 	overflow-x: auto;
 	overscroll-behavior-x: contain;
@@ -1283,21 +1518,116 @@ textarea:focus {
 
 .family-card {
 	display: grid;
-	width: 380px;
-	min-height: 640px;
+	width: 300px;
+	min-height: 0;
 	align-content: start;
-	gap: 16px;
+	gap: 12px;
 	border: 1px solid #e7eaf0;
 	border-radius: 8px;
 	background: #fff;
-	padding: 18px;
+	padding: 14px;
 	box-shadow: 0 14px 34px rgba(30, 36, 48, 0.05);
 	scroll-snap-align: start;
+	transition:
+		width 0.18s ease,
+		border-color 0.18s ease,
+		box-shadow 0.18s ease;
 }
 
 .family-card.selected {
+	width: 380px;
 	border-color: #7047f5;
 	box-shadow: 0 0 0 1px rgba(112, 71, 245, 0.18), 0 14px 34px rgba(30, 36, 48, 0.05);
+}
+
+.family-card-summary {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	width: 100%;
+	gap: 10px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	padding: 0;
+	text-align: left;
+}
+
+.family-card-summary:hover {
+	background: #f8f9fc;
+	margin: -6px;
+	padding: 6px;
+}
+
+.family-card-summary:focus-visible {
+	outline: 2px solid #7047f5;
+	outline-offset: 4px;
+}
+
+.family-card-summary.expanded {
+	border-bottom: 1px solid #edf0f5;
+	border-radius: 0;
+	padding-bottom: 14px;
+}
+
+.family-card-summary.expanded:hover {
+	background: transparent;
+	margin: 0;
+	padding: 0 0 14px;
+}
+
+.family-card-summary > span:not(.family-summary-title):not(.family-status-badge),
+.family-summary-line span {
+	color: #6b7383;
+	font-size: 0.78rem;
+	font-weight: 850;
+}
+
+.family-status-badge {
+	align-self: start;
+	justify-self: end;
+	border: 1px solid rgba(255, 255, 255, 0.28);
+	border-radius: 999px;
+	background: linear-gradient(135deg, #7047f5, #8c64ff);
+	box-shadow: 0 10px 22px rgba(112, 71, 245, 0.28);
+	color: #fff;
+	font-size: 0.72rem;
+	font-weight: 900;
+	line-height: 1;
+	padding: 7px 10px;
+	white-space: nowrap;
+}
+
+.family-summary-title {
+	grid-column: 1 / -1;
+	color: #1e2430;
+	font-size: 1.1rem;
+	font-weight: 900;
+	overflow-wrap: anywhere;
+}
+
+.family-summary-line {
+	display: grid;
+	grid-column: 1 / -1;
+	gap: 3px;
+	min-width: 0;
+}
+
+.family-summary-line strong {
+	color: #1e2430;
+	font-size: 0.94rem;
+	overflow-wrap: anywhere;
+}
+
+.family-card-details {
+	display: grid;
+	gap: 16px;
+}
+
+.family-card-toolbar strong {
+	color: #1e2430;
+	font-size: 0.95rem;
 }
 
 .family-card header,
@@ -1320,12 +1650,6 @@ textarea:focus {
 	flex-wrap: wrap;
 	justify-content: flex-end;
 	gap: 8px;
-}
-
-.family-card h2 {
-	font-size: 1.25rem;
-	min-height: 1.5em;
-	overflow-wrap: anywhere;
 }
 
 .family-card select {
@@ -1401,10 +1725,6 @@ textarea:focus {
 	padding: 12px;
 }
 
-.crm-followup textarea {
-	min-height: 82px;
-}
-
 .danger-link {
 	background: transparent;
 	color: #a64b3b;
@@ -1438,6 +1758,7 @@ textarea:focus {
 	.clinic-shell.dark-mode .schedule-empty,
 	.clinic-shell.dark-mode .schedule-choice,
 	.clinic-shell.dark-mode .photo-field,
+	.clinic-shell.dark-mode .guardian-form-section,
 	.clinic-shell.dark-mode .pending-list button,
 	.clinic-shell.dark-mode .crm-metrics div,
 	.clinic-shell.dark-mode .communication-form,
@@ -1502,6 +1823,8 @@ textarea:focus {
 	.clinic-shell.dark-mode .communication-head p,
 	.clinic-shell.dark-mode .crm-metrics span,
 	.clinic-shell.dark-mode .family-card header span,
+	.clinic-shell.dark-mode .family-card-summary > span,
+	.clinic-shell.dark-mode .family-summary-line span,
 	.clinic-shell.dark-mode .family-block-head h3,
 	.clinic-shell.dark-mode .contact-row span,
 	.clinic-shell.dark-mode .learner-picker > span,
@@ -1523,15 +1846,61 @@ textarea:focus {
 	color: #eef2ff;
 }
 
+.clinic-shell.dark-mode .summary-meeting-row {
+	border-color: #273149;
+	background: #111827;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .summary-meeting-row span,
+.clinic-shell.dark-mode .summary-meeting-list p {
+	color: #aab4ca;
+}
+
+.clinic-shell.dark-mode .summary-card-head span,
+.clinic-shell.dark-mode .guardian-form-head span,
+.clinic-shell.dark-mode .summary-meeting-row small,
+.clinic-shell.dark-mode .schedule-confirmation {
+	border-color: #3a2a72;
+	background: #2b2154;
+	color: #c8b8ff;
+}
+
 .clinic-shell.dark-mode .crm-metrics strong,
+.clinic-shell.dark-mode .family-summary-title,
+.clinic-shell.dark-mode .family-summary-line strong,
+.clinic-shell.dark-mode .family-card-toolbar strong,
 .clinic-shell.dark-mode .crm-stage-tabs button,
 .clinic-shell.dark-mode .mini-action,
 .clinic-shell.dark-mode .profile-responsible-row button {
 	color: #eef2ff;
 }
 
+.clinic-shell.dark-mode .family-card-summary:hover {
+	background: #111827;
+}
+
 .clinic-shell.dark-mode .profile-responsible-row button {
 	background: #1d2a44;
+}
+
+.clinic-shell.dark-mode .confirmation-dialog {
+	border-color: #3a2a72;
+	background: #151c2d;
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .confirmation-copy h2 {
+	color: #eef2ff;
+}
+
+.clinic-shell.dark-mode .confirmation-copy p {
+	color: #aab4ca;
+}
+
+.clinic-shell.dark-mode .confirmation-icon {
+	background: #3a211f;
+	color: #ffb3a6;
 }
 
 .clinic-shell.dark-mode .side-nav button.active,
@@ -1599,6 +1968,7 @@ textarea:focus {
 
 		.form-grid,
 		.form-grid.compact,
+		.guardian-form-grid,
 		.crm-metrics,
 		.family-card-grid,
 		.summary-grid,
@@ -1610,8 +1980,19 @@ textarea:focus {
 		grid-auto-columns: minmax(300px, calc(100vw - 40px));
 	}
 
-	.family-card {
+	.family-card,
+	.family-card.selected {
 		width: min(380px, calc(100vw - 40px));
+	}
+
+	.confirmation-dialog {
+		grid-template-columns: 1fr;
+		gap: 14px;
+		padding: 18px;
+	}
+
+	.confirmation-actions {
+		flex-direction: column-reverse;
 	}
 
 	.learner-list button {

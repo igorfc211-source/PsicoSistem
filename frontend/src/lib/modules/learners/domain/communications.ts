@@ -1,8 +1,21 @@
 import { createId } from './factories';
-import type { Learner } from './types';
+import type { Learner, LearnerGuardian } from './types';
 
-export type CommunicationStage = 'novo' | 'em_contato' | 'aguardando' | 'acompanhamento';
+export type CommunicationStage =
+	| 'novo'
+	| 'em_contato'
+	| 'aguardando'
+	| 'acompanhamento'
+	| 'inativo';
 export type ContactChannelType = 'phone' | 'whatsapp' | 'instagram' | 'email' | 'other';
+
+export type GuardianOption = {
+	key: string;
+	name: string;
+	relationship: string;
+	phone: string;
+	learnerIds: string[];
+};
 
 export type CommunicationResponsible = {
 	id: string;
@@ -46,6 +59,7 @@ export type NewCommunicationResponsibleInput = {
 	name: string;
 	relationship: string;
 	phone: string;
+	learnerIds: string[];
 };
 
 export type NewCommunicationContactInput = {
@@ -59,7 +73,8 @@ export const COMMUNICATION_STAGES: Array<{ value: CommunicationStage; label: str
 	{ value: 'novo', label: 'Novo' },
 	{ value: 'em_contato', label: 'Em contato' },
 	{ value: 'aguardando', label: 'Aguardando' },
-	{ value: 'acompanhamento', label: 'Acompanhamento' }
+	{ value: 'acompanhamento', label: 'Acompanhamento' },
+	{ value: 'inativo', label: 'Inativo' }
 ];
 
 export const CONTACT_CHANNEL_TYPES: Array<{ value: ContactChannelType; label: string }> = [
@@ -70,13 +85,31 @@ export const CONTACT_CHANNEL_TYPES: Array<{ value: ContactChannelType; label: st
 	{ value: 'other', label: 'Outro' }
 ];
 
+export const RELATIONSHIP_OPTIONS = [
+	'Mae',
+	'Pai',
+	'Responsavel legal',
+	'Avo',
+	'Avo materna',
+	'Avo paterna',
+	'Tia',
+	'Tio',
+	'Madrasta',
+	'Padrasto',
+	'Irma',
+	'Irmao',
+	'Outro'
+];
+
 export function createCommunicationFamily(input: NewCommunicationFamilyInput): CommunicationFamily {
 	const now = new Date().toISOString();
 	const responsibleName = input.responsibleName.trim();
+	const responsibleKey = normalizeResponsibleKey(responsibleName);
 
 	return {
 		id: createId('family'),
 		familyName: input.familyName.trim(),
+		sourceGuardianKey: responsibleKey || undefined,
 		stage: 'novo',
 		learnerIds: normalizeIds(input.learnerIds),
 		responsibles: responsibleName
@@ -112,6 +145,7 @@ export function addResponsibleToFamily(
 
 	return {
 		...family,
+		learnerIds: normalizeIds([...family.learnerIds, ...input.learnerIds]),
 		responsibles: [...family.responsibles, responsible],
 		updatedAt: now
 	};
@@ -167,41 +201,150 @@ export function syncCommunicationFamiliesWithLearners(
 ): CommunicationFamily[] {
 	const hiddenGuardianKeys = new Set(hiddenSourceGuardianKeys);
 	const validLearnerIds = new Set(learners.map((learner) => learner.id));
-	const nextFamilies = families
+	const nextFamilies = mergeFamiliesByResponsible(
+		families
 		.filter((family) => !family.sourceGuardianKey || !hiddenGuardianKeys.has(family.sourceGuardianKey))
 		.map((family) => ({
 			...family,
 			learnerIds: normalizeIds(family.learnerIds).filter((id) => validLearnerIds.has(id))
-		}));
+		}))
+	);
 	const familiesByGuardianKey = new Map<string, CommunicationFamily>();
+	const familiesByResponsibleKey = new Map<string, CommunicationFamily>();
 
 	for (const family of nextFamilies) {
 		if (family.sourceGuardianKey) {
 			familiesByGuardianKey.set(family.sourceGuardianKey, family);
 		}
+		for (const key of getCommunicationFamilyResponsibleKeys(family)) {
+			familiesByResponsibleKey.set(key, family);
+		}
 	}
 
 	for (const learner of learners) {
-		const guardianName = learner.guardian.trim();
-		const sourceGuardianKey = normalizeKey(guardianName);
-		if (!sourceGuardianKey) continue;
-		if (hiddenGuardianKeys.has(sourceGuardianKey)) continue;
+		const learnerGuardians = getLearnerGuardianEntries(learner).filter(
+			(guardian) => !hiddenGuardianKeys.has(guardian.sourceKey)
+		);
+		if (!learnerGuardians.length) continue;
 
-		const existingFamily = familiesByGuardianKey.get(sourceGuardianKey);
+		const existingFamily = learnerGuardians
+			.map((guardian) => familiesByGuardianKey.get(guardian.sourceKey) ?? familiesByResponsibleKey.get(guardian.sourceKey))
+			.find(Boolean);
 		if (existingFamily) {
 			if (!existingFamily.learnerIds.includes(learner.id)) {
 				existingFamily.learnerIds = [...existingFamily.learnerIds, learner.id];
 				existingFamily.updatedAt = new Date().toISOString();
 			}
+			if (!existingFamily.sourceGuardianKey) {
+				existingFamily.sourceGuardianKey = learnerGuardians[0].sourceKey;
+			}
+			existingFamily.responsibles = upsertFamilyResponsibles(existingFamily, learnerGuardians);
+			for (const guardian of learnerGuardians) {
+				familiesByGuardianKey.set(guardian.sourceKey, existingFamily);
+				familiesByResponsibleKey.set(guardian.sourceKey, existingFamily);
+			}
 			continue;
 		}
 
-		const createdFamily = createFamilyFromLearner(learner, sourceGuardianKey);
+		const createdFamily = createFamilyFromLearner(learner, learnerGuardians);
 		nextFamilies.push(createdFamily);
-		familiesByGuardianKey.set(sourceGuardianKey, createdFamily);
+		for (const guardian of learnerGuardians) {
+			familiesByGuardianKey.set(guardian.sourceKey, createdFamily);
+			familiesByResponsibleKey.set(guardian.sourceKey, createdFamily);
+		}
 	}
 
-	return nextFamilies;
+	return mergeFamiliesByResponsible(nextFamilies);
+}
+
+export function buildGuardianOptionsFromLearners(
+	learners: Learner[],
+	families: CommunicationFamily[] = []
+): GuardianOption[] {
+	const optionsByKey = new Map<string, GuardianOption>();
+
+	for (const learner of learners) {
+		for (const guardian of getLearnerGuardianEntries(learner)) {
+			upsertGuardianOption(optionsByKey, {
+				key: guardian.sourceKey,
+				name: guardian.name,
+				relationship: guardian.relationship,
+				phone: guardian.phone,
+				learnerIds: [learner.id]
+			});
+		}
+	}
+
+	for (const family of families) {
+		for (const responsible of family.responsibles) {
+			const key = normalizeResponsibleKey(responsible.name);
+			if (!key) continue;
+
+			upsertGuardianOption(optionsByKey, {
+				key,
+				name: responsible.name,
+				relationship: responsible.relationship,
+				phone: responsible.phone,
+				learnerIds: family.learnerIds
+			});
+		}
+	}
+
+	return Array.from(optionsByKey.values()).sort((left, right) =>
+		left.name.localeCompare(right.name)
+	);
+}
+
+export function getCommunicationFamilyResponsibleKeys(family: CommunicationFamily) {
+	const keys = new Set<string>();
+	if (family.sourceGuardianKey) keys.add(family.sourceGuardianKey);
+
+	for (const responsible of family.responsibles) {
+		const key = normalizeResponsibleKey(responsible.name);
+		if (key) keys.add(key);
+	}
+
+	return Array.from(keys);
+}
+
+export function normalizeResponsibleKey(value: string) {
+	return normalizeKey(value);
+}
+
+export function getLearnerGuardianEntries(learner: Learner): LearnerGuardian[] {
+	const rawGuardians =
+		learner.guardians && learner.guardians.length > 0
+			? learner.guardians
+			: [
+					{
+						id: '',
+						sourceKey: '',
+						name: learner.guardian,
+						relationship: learner.guardianRelationship,
+						phone: ''
+					}
+				];
+	const seenKeys = new Set<string>();
+
+	return rawGuardians
+		.map((guardian) => {
+			const name = guardian.name.trim();
+			const sourceKey = guardian.sourceKey || normalizeResponsibleKey(name);
+
+			return {
+				id: guardian.id || `learner-guardian-${sourceKey}`,
+				sourceKey,
+				name,
+				relationship: guardian.relationship ?? '',
+				phone: normalizePhone(guardian.phone ?? '')
+			};
+		})
+		.filter((guardian) => {
+			if (!guardian.name || !guardian.sourceKey || seenKeys.has(guardian.sourceKey)) return false;
+			seenKeys.add(guardian.sourceKey);
+			return true;
+		})
+		.slice(0, 2);
 }
 
 export function getFamilyLearners(family: CommunicationFamily, learners: Learner[]) {
@@ -246,24 +389,25 @@ function normalizeContactValue(type: ContactChannelType, value: string) {
 	return value.trim();
 }
 
-function createFamilyFromLearner(learner: Learner, sourceGuardianKey: string): CommunicationFamily {
+function createFamilyFromLearner(
+	learner: Learner,
+	learnerGuardians: LearnerGuardian[]
+): CommunicationFamily {
 	const now = new Date().toISOString();
-	const guardianName = learner.guardian.trim();
+	const primaryGuardian = learnerGuardians[0];
 
 	return {
 		id: createId('family'),
-		familyName: inferFamilyName(guardianName, learner.name),
-		sourceGuardianKey,
+		familyName: inferFamilyName(primaryGuardian?.name ?? '', learner.name),
+		sourceGuardianKey: primaryGuardian?.sourceKey,
 		stage: 'novo',
 		learnerIds: [learner.id],
-		responsibles: [
-			{
-				id: createId('responsible'),
-				name: guardianName,
-				relationship: '',
-				phone: ''
-			}
-		],
+		responsibles: learnerGuardians.slice(0, 2).map((guardian) => ({
+			id: createId('responsible'),
+			name: guardian.name,
+			relationship: guardian.relationship,
+			phone: normalizePhone(guardian.phone)
+		})),
 		contacts: [],
 		nextStep: '',
 		notes: '',
@@ -288,4 +432,115 @@ function normalizeIds(ids: string[]) {
 
 function normalizeKey(value: string) {
 	return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function upsertFamilyResponsibles(
+	family: CommunicationFamily,
+	learnerGuardians: LearnerGuardian[]
+) {
+	let responsibles = family.responsibles;
+
+	for (const guardian of learnerGuardians) {
+		const guardianKey = normalizeResponsibleKey(guardian.name);
+		if (!guardianKey) continue;
+
+		const existingResponsible = responsibles.find(
+			(responsible) => normalizeResponsibleKey(responsible.name) === guardianKey
+		);
+		if (existingResponsible) {
+			responsibles = responsibles.map((responsible) =>
+				responsible.id === existingResponsible.id
+					? {
+							...responsible,
+							relationship: responsible.relationship || guardian.relationship,
+							phone: responsible.phone || normalizePhone(guardian.phone)
+						}
+					: responsible
+			);
+			continue;
+		}
+
+		if (responsibles.length >= 2) continue;
+		responsibles = [
+			...responsibles,
+			{
+				id: createId('responsible'),
+				name: guardian.name,
+				relationship: guardian.relationship,
+				phone: normalizePhone(guardian.phone)
+			}
+		];
+	}
+
+	return responsibles;
+}
+
+function mergeFamiliesByResponsible(families: CommunicationFamily[]) {
+	const mergedFamilies: CommunicationFamily[] = [];
+	const familyByResponsibleKey = new Map<string, CommunicationFamily>();
+
+	for (const family of families) {
+		const keys = getCommunicationFamilyResponsibleKeys(family);
+		const existingFamily = keys.map((key) => familyByResponsibleKey.get(key)).find(Boolean);
+
+		if (!existingFamily) {
+			mergedFamilies.push(family);
+			for (const key of keys) familyByResponsibleKey.set(key, family);
+			continue;
+		}
+
+		existingFamily.learnerIds = normalizeIds([...existingFamily.learnerIds, ...family.learnerIds]);
+		existingFamily.responsibles = mergeResponsibles(
+			existingFamily.responsibles,
+			family.responsibles
+		);
+		existingFamily.contacts = mergeContacts(existingFamily.contacts, family.contacts);
+		existingFamily.sourceGuardianKey ??= family.sourceGuardianKey;
+		existingFamily.updatedAt = new Date().toISOString();
+
+		for (const key of getCommunicationFamilyResponsibleKeys(existingFamily)) {
+			familyByResponsibleKey.set(key, existingFamily);
+		}
+	}
+
+	return mergedFamilies;
+}
+
+function mergeResponsibles(
+	left: CommunicationResponsible[],
+	right: CommunicationResponsible[]
+) {
+	const responsibles = [...left];
+	const keys = new Set(left.map((responsible) => normalizeResponsibleKey(responsible.name)));
+
+	for (const responsible of right) {
+		const key = normalizeResponsibleKey(responsible.name);
+		if (key && keys.has(key)) continue;
+		if (responsibles.length >= 2) break;
+		responsibles.push(responsible);
+		if (key) keys.add(key);
+	}
+
+	return responsibles;
+}
+
+function mergeContacts(left: CommunicationContact[], right: CommunicationContact[]) {
+	const contactIds = new Set(left.map((contact) => contact.id));
+	return [...left, ...right.filter((contact) => !contactIds.has(contact.id))];
+}
+
+function upsertGuardianOption(options: Map<string, GuardianOption>, option: GuardianOption) {
+	const existing = options.get(option.key);
+	if (existing) {
+		existing.learnerIds = normalizeIds([...existing.learnerIds, ...option.learnerIds]);
+		existing.relationship ||= option.relationship;
+		existing.phone ||= normalizePhone(option.phone);
+		return;
+	}
+
+	options.set(option.key, {
+		...option,
+		phone: normalizePhone(option.phone),
+		learnerIds: normalizeIds(option.learnerIds)
+	});
 }

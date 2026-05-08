@@ -2,6 +2,21 @@ export type LearnerStatus = 'active' | 'inactive';
 export type VisitStatus = 'scheduled' | 'completed' | 'missed';
 export type VisitKind = 'session' | 'assessment' | 'return';
 
+export type LearnerGuardian = {
+	id: string;
+	sourceKey: string;
+	name: string;
+	relationship: string;
+	phone: string;
+};
+
+export type LearnerGuardianInput = {
+	sourceKey: string;
+	name: string;
+	relationship: string;
+	phone: string;
+};
+
 export type Visit = {
 	id: string;
 	date: string;
@@ -55,12 +70,15 @@ export type Learner = {
 	photoUrl: string;
 	gender: string;
 	guardian: string;
+	guardianRelationship: string;
+	guardians: LearnerGuardian[];
 	age: string;
 	status: LearnerStatus;
 	startDate: string;
 	endDate: string;
 	visitCount: number;
 	sessionPriceCents: number;
+	generalValueCents: number;
 	anamnese: string;
 	anamneseDocuments: LearnerDocument[];
 	actionPlan: ActionPlan;
@@ -76,12 +94,15 @@ export type NewLearnerInput = {
 	photoUrl: string;
 	gender: string;
 	guardian: string;
+	guardianRelationship: string;
+	guardians: LearnerGuardianInput[];
 	age: string;
 	status: LearnerStatus;
 	startDate: string;
 	endDate: string;
 	visitCount: number;
 	sessionPriceCents: number;
+	generalValueCents: number;
 };
 
 export type CalendarDay = {

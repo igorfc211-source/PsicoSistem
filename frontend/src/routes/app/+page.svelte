@@ -28,12 +28,16 @@
 		filterLearners,
 		getDocumentBlob,
 		getDocumentStorageKey,
+		getLearnerGuardianEntries,
 		isValidEmailAddress,
 		isValidInstagramHandle,
 		isValidPhoneNumber,
+		buildGuardianOptionsFromLearners,
 		loadCommunicationFamilies,
 		loadHiddenCommunicationSourceKeys,
 		loadLearners,
+		getCommunicationFamilyResponsibleKeys,
+		normalizeResponsibleKey,
 		patchLearnerInList,
 		prepareDocumentBlob,
 		prependReportToLearner,
@@ -58,6 +62,7 @@
 		type Learner,
 		type LearnerDocument,
 		type LearnerFilter,
+		type LearnerGuardianInput,
 		type NewCommunicationContactInput,
 		type NewCommunicationFamilyInput,
 		type NewCommunicationResponsibleInput,
@@ -76,6 +81,14 @@
 		type NewSessionAppointmentInput
 	} from '$lib/modules/scheduling';
 	import { formatLongDate, formatMonth } from '$lib/shared/formatters';
+
+	type DeletionConfirmation = {
+		title: string;
+		message: string;
+		cancelLabel: string;
+		confirmLabel: string;
+		resolve: (confirmed: boolean) => void;
+	};
 
 	let session = $state<StoredSession | null>(null);
 	let learners = $state<Learner[]>([]);
@@ -96,6 +109,7 @@
 	let isSidebarOpen = $state(false);
 	let theme = $state<'light' | 'dark'>('light');
 	let banner = $state<Banner | null>(null);
+	let deletionConfirmation = $state<DeletionConfirmation | null>(null);
 
 	const filteredLearners = $derived(filterLearners(learners, searchTerm, learnerFilter));
 	const selectedLearner = $derived(
@@ -135,6 +149,7 @@
 	const currentDateLabel = $derived(formatLongDate(selectedAgendaDate));
 	const tenantName = $derived(session?.payload.tenant?.name ?? 'PsicoClinica');
 	const userName = $derived(session?.payload.user?.name ?? 'Usuario');
+	const guardianOptions = $derived(buildGuardianOptionsFromLearners(learners, communicationFamilies));
 
 	onMount(() => {
 		if (!browser) return;
@@ -155,7 +170,7 @@
 		);
 		agendaEvents = loadAgendaEvents();
 		selectedLearnerId = learners[0]?.id ?? null;
-		selectedFamilyId = communicationFamilies[0]?.id ?? null;
+		selectedFamilyId = null;
 		saveCommunicationFamilies(communicationFamilies);
 		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
 	});
@@ -210,13 +225,59 @@
 		persistCommunicationFamilies(syncedFamilies);
 
 		if (!selectedFamilyId || !syncedFamilies.some((family) => family.id === selectedFamilyId)) {
-			selectedFamilyId = syncedFamilies[0]?.id ?? null;
+			selectedFamilyId = null;
 		}
 	}
 
 	function syncFamiliesForLearners(nextLearners: Learner[]) {
 		if (!browser) return;
 		setCommunicationFamilies(communicationFamilies, nextLearners);
+	}
+
+	function confirmDeletion(message: string, title = 'Confirmar remocao') {
+		if (!browser) return Promise.resolve(false);
+
+		if (deletionConfirmation) {
+			deletionConfirmation.resolve(false);
+		}
+
+		return new Promise<boolean>((resolve) => {
+			deletionConfirmation = {
+				title,
+				message,
+				cancelLabel: 'Cancelar',
+				confirmLabel: 'Confirmar exclusao',
+				resolve
+			};
+		});
+	}
+
+	function closeDeletionConfirmation(confirmed: boolean) {
+		const currentConfirmation = deletionConfirmation;
+		if (!currentConfirmation) return;
+
+		deletionConfirmation = null;
+		currentConfirmation.resolve(confirmed);
+	}
+
+	function handleDeletionConfirmationKeydown(event: KeyboardEvent) {
+		if (!deletionConfirmation) return;
+
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeDeletionConfirmation(false);
+		}
+
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			closeDeletionConfirmation(true);
+		}
+	}
+
+	function getLearnerDocumentStorageKeys(learner: Learner) {
+		return [...learner.documents, ...learner.anamneseDocuments].map((document) =>
+			getDocumentStorageKey(learner.id, document.id)
+		);
 	}
 
 	// Atualiza qualquer aprendente por id, mantendo a data de edicao em um unico lugar.
@@ -274,8 +335,12 @@
 	}
 
 	// Remove campos personalizados do plano quando a clinica nao precisa mais daquela secao.
-	function removeCustomActionPlanFieldFromSelected(fieldId: string) {
+	async function removeCustomActionPlanFieldFromSelected(fieldId: string) {
 		if (!selectedLearner) return;
+
+		const field = selectedLearner.actionPlan.customFields.find((item) => item.id === fieldId);
+		const fieldName = field?.label ? `"${field.label}"` : 'este campo';
+		if (!(await confirmDeletion(`Remover ${fieldName} do plano de acao?`))) return;
 
 		updateSelectedLearner({
 			actionPlan: removeCustomActionPlanField(selectedLearner.actionPlan, fieldId)
@@ -305,6 +370,31 @@
 			return false;
 		}
 
+		const filledGuardians = getFilledGuardianInputs(input.guardians);
+		if (filledGuardians.length === 0) {
+			banner = {
+				tone: 'error',
+				text: 'Informe pelo menos um responsavel do aprendente.'
+			};
+			return false;
+		}
+
+		if (filledGuardians.some((guardian) => !guardian.relationship.trim())) {
+			banner = {
+				tone: 'error',
+				text: 'Selecione o parentesco de cada responsavel informado.'
+			};
+			return false;
+		}
+
+		if (hasDuplicateGuardian(filledGuardians)) {
+			banner = {
+				tone: 'error',
+				text: 'O mesmo responsavel nao pode ser informado duas vezes no aprendente.'
+			};
+			return false;
+		}
+
 		const createdLearner = createLearner(input);
 		const nextLearners = [createdLearner, ...learners];
 		learners = nextLearners;
@@ -322,6 +412,67 @@
 		return true;
 	}
 
+	async function deleteLearner(learnerId: string) {
+		const learner = learners.find((item) => item.id === learnerId);
+		if (!learner) return;
+
+		if (
+			!(await confirmDeletion(
+				`Excluir o aprendente "${learner.name}"? Isso remove o prontuario, agenda, documentos e relatorios desse aprendente.`
+			))
+		) {
+			return;
+		}
+
+		try {
+			await Promise.all(getLearnerDocumentStorageKeys(learner).map((key) => deleteDocumentBlob(key)));
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir os arquivos do aprendente.'
+			};
+			return;
+		}
+
+		const nextLearners = learners.filter((item) => item.id !== learnerId);
+		learners = nextLearners;
+		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
+
+		if (selectedLearnerId === learnerId) {
+			selectedLearnerId = nextLearners[0]?.id ?? null;
+			selectedVisitId = null;
+			detailTab = 'resumo';
+		}
+
+		banner = {
+			tone: 'success',
+			text: 'Aprendente excluido com sucesso.'
+		};
+	}
+
+	function getFilledGuardianInputs(guardians: LearnerGuardianInput[]) {
+		return guardians.filter(
+			(guardian) =>
+				guardian.name.trim() ||
+				guardian.relationship.trim() ||
+				guardian.phone.trim() ||
+				guardian.sourceKey.trim()
+		);
+	}
+
+	function hasDuplicateGuardian(guardians: LearnerGuardianInput[]) {
+		const keys = new Set<string>();
+		for (const guardian of guardians) {
+			const key = guardian.sourceKey || normalizeResponsibleKey(guardian.name);
+			if (!key) continue;
+			if (keys.has(key)) return true;
+			keys.add(key);
+		}
+
+		return false;
+	}
+
 	// Abre o prontuario do aprendente e volta para a secao principal quando necessario.
 	function selectLearner(id: string) {
 		selectedLearnerId = id;
@@ -336,18 +487,32 @@
 		banner = null;
 	}
 
+	function closeFamily() {
+		selectedFamilyId = null;
+		banner = null;
+	}
+
 	function openLearnerResponsible(learner: Learner) {
 		let family = communicationFamilies.find((item) => item.learnerIds.includes(learner.id)) ?? null;
+		const learnerGuardians = getLearnerGuardianEntries(learner);
+		const primaryGuardian = learnerGuardians[0] ?? null;
 
-		if (!family && learner.guardian.trim()) {
+		if (!family && primaryGuardian) {
 			family = createCommunicationFamily({
 				familyName: buildFamilyNameFromLearner(learner),
-				responsibleName: learner.guardian,
-				responsiblePhone: '',
-				relationship: '',
+				responsibleName: primaryGuardian.name,
+				responsiblePhone: primaryGuardian.phone,
+				relationship: primaryGuardian.relationship,
 				learnerIds: [learner.id]
 			});
-			setCommunicationFamilies([family, ...communicationFamilies]);
+			const sourceKey = family.sourceGuardianKey;
+			let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+			if (sourceKey && hiddenCommunicationSourceKeys.includes(sourceKey)) {
+				nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== sourceKey);
+				hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+				saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+			}
+			setCommunicationFamilies([family, ...communicationFamilies], learners, nextHiddenSourceKeys);
 		}
 
 		if (family) {
@@ -365,7 +530,7 @@
 	}
 
 	function buildFamilyNameFromLearner(learner: Learner) {
-		const referenceName = learner.guardian.trim() || learner.name;
+		const referenceName = getLearnerGuardianEntries(learner)[0]?.name ?? learner.name;
 		const tokens = referenceName.split(/\s+/).filter(Boolean);
 		const surname = tokens.at(-1) ?? 'Contato';
 
@@ -397,9 +562,25 @@
 			return false;
 		}
 
+		if (isResponsibleUsedInAnotherFamily(input.responsibleName)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja possui um card de comunicacao.'
+			};
+			return false;
+		}
+
 		const createdFamily = createCommunicationFamily(input);
+		const createdSourceKey = createdFamily.sourceGuardianKey;
+		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+		if (createdSourceKey && hiddenCommunicationSourceKeys.includes(createdSourceKey)) {
+			nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== createdSourceKey);
+			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+		}
+
 		selectedFamilyId = createdFamily.id;
-		setCommunicationFamilies([createdFamily, ...communicationFamilies]);
+		setCommunicationFamilies([createdFamily, ...communicationFamilies], learners, nextHiddenSourceKeys);
 		banner = {
 			tone: 'success',
 			text: 'Card de comunicacao criado.'
@@ -420,14 +601,21 @@
 		setCommunicationFamilies(nextFamilies);
 	}
 
-	function deleteCommunicationFamily(familyId: string) {
+	async function deleteCommunicationFamily(familyId: string) {
 		const removedFamily = communicationFamilies.find((family) => family.id === familyId);
+		if (!removedFamily) return;
+
+		if (!(await confirmDeletion(`Excluir o card de comunicacao "${removedFamily.familyName}"?`))) {
+			return;
+		}
+
 		const nextFamilies = communicationFamilies.filter((family) => family.id !== familyId);
 		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+		const removedSourceKeys = getCommunicationFamilyResponsibleKeys(removedFamily);
 
-		if (removedFamily?.sourceGuardianKey) {
+		if (removedSourceKeys.length) {
 			nextHiddenSourceKeys = Array.from(
-				new Set([...hiddenCommunicationSourceKeys, removedFamily.sourceGuardianKey])
+				new Set([...hiddenCommunicationSourceKeys, ...removedSourceKeys])
 			);
 			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
 			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
@@ -460,6 +648,33 @@
 			return false;
 		}
 
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		if (!family) return false;
+
+		if (family.responsibles.length >= 2) {
+			banner = {
+				tone: 'error',
+				text: 'Cada card pode ter no maximo dois responsaveis.'
+			};
+			return false;
+		}
+
+		if (isResponsibleInFamily(family, input.name)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja esta neste card.'
+			};
+			return false;
+		}
+
+		if (isResponsibleUsedInAnotherFamily(input.name, familyId)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja possui outro card de comunicacao.'
+			};
+			return false;
+		}
+
 		const nextFamilies = communicationFamilies.map((family) =>
 			family.id === familyId ? addResponsibleToFamily(family, input) : family
 		);
@@ -471,11 +686,40 @@
 		return true;
 	}
 
-	function removeResponsibleFromCommunicationFamily(familyId: string, responsibleId: string) {
+	function isResponsibleUsedInAnotherFamily(responsibleName: string, ignoredFamilyId?: string) {
+		const key = normalizeResponsibleKey(responsibleName);
+		if (!key) return false;
+
+		return communicationFamilies.some(
+			(family) =>
+				family.id !== ignoredFamilyId && getCommunicationFamilyResponsibleKeys(family).includes(key)
+		);
+	}
+
+	function isResponsibleInFamily(family: CommunicationFamily, responsibleName: string) {
+		const key = normalizeResponsibleKey(responsibleName);
+		if (!key) return false;
+
+		return getCommunicationFamilyResponsibleKeys(family).includes(key);
+	}
+
+	async function removeResponsibleFromCommunicationFamily(familyId: string, responsibleId: string) {
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		const responsible = family?.responsibles.find((item) => item.id === responsibleId);
+		if (!family || !responsible) return;
+
+		if (!(await confirmDeletion(`Remover "${responsible.name}" do card "${family.familyName}"?`))) {
+			return;
+		}
+
 		const nextFamilies = communicationFamilies.map((family) =>
 			family.id === familyId ? removeResponsibleFromFamily(family, responsibleId) : family
 		);
 		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Responsavel removido do card.'
+		};
 	}
 
 	function addContactToCommunicationFamily(familyId: string, input: NewCommunicationContactInput) {
@@ -530,11 +774,23 @@
 		return true;
 	}
 
-	function removeContactFromCommunicationFamily(familyId: string, contactId: string) {
+	async function removeContactFromCommunicationFamily(familyId: string, contactId: string) {
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		const contact = family?.contacts.find((item) => item.id === contactId);
+		if (!family || !contact) return;
+
+		if (!(await confirmDeletion(`Remover o contato "${contact.label || contact.value}" deste card?`))) {
+			return;
+		}
+
 		const nextFamilies = communicationFamilies.map((family) =>
 			family.id === familyId ? removeContactFromFamily(family, contactId) : family
 		);
 		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Contato removido do card.'
+		};
 	}
 
 	// Troca o aprendente dentro da agenda sem tirar o usuario da visualizacao de calendario.
@@ -600,8 +856,13 @@
 	}
 
 	// Remove uma visita e sincroniza a contagem exibida no cadastro do aprendente.
-	function removeVisit(id: string) {
+	async function removeVisit(id: string) {
 		if (!selectedLearner) return;
+		const visit = selectedLearner.visits.find((item) => item.id === id);
+		if (!visit) return;
+
+		if (!(await confirmDeletion(`Remover a sessao de ${visit.date} as ${visit.startTime}?`))) return;
+
 		const nextVisits = removeVisitFromList(selectedLearner.visits, id);
 
 		updateSelectedLearner({
@@ -609,12 +870,26 @@
 			visitCount: nextVisits.length
 		});
 		selectedVisitId = null;
+		banner = {
+			tone: 'success',
+			text: 'Sessao removida da agenda.'
+		};
 	}
 
 	// Remove uma sessao diretamente da agenda diaria, mesmo quando outro aprendente esta aberto.
-	function removeSessionAppointment(learnerId: string, visitId: string) {
+	async function removeSessionAppointment(learnerId: string, visitId: string) {
 		const learner = learners.find((item) => item.id === learnerId);
 		if (!learner) return;
+		const visit = learner.visits.find((item) => item.id === visitId);
+		if (!visit) return;
+
+		if (
+			!(await confirmDeletion(
+				`Remover a sessao de ${learner.name} em ${visit.date} as ${visit.startTime}?`
+			))
+		) {
+			return;
+		}
 
 		const nextVisits = removeVisitFromList(learner.visits, visitId);
 		updateLearnerById(learner.id, {
@@ -699,7 +974,9 @@
 	}
 
 	// Remove eventos livres sem mexer nas sessoes registradas nos aprendentes.
-	function removeAgendaEvent(event: AgendaEvent) {
+	async function removeAgendaEvent(event: AgendaEvent) {
+		if (!(await confirmDeletion(`Remover o evento "${event.title}" da agenda?`))) return;
+
 		const nextEvents = removeAgendaEventById(agendaEvents, event.id);
 		agendaEvents = nextEvents;
 		persistAgendaEvents(nextEvents);
@@ -865,20 +1142,46 @@
 	async function removeDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
 
-		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
-		updateSelectedLearner({
-			documents: selectedLearner.documents.filter((item) => item.id !== document.id)
-		});
+		if (!(await confirmDeletion(`Excluir o documento "${document.name}"?`))) return;
+
+		try {
+			await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+			updateSelectedLearner({
+				documents: selectedLearner.documents.filter((item) => item.id !== document.id)
+			});
+			banner = {
+				tone: 'success',
+				text: 'Documento excluido.'
+			};
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir o documento.'
+			};
+		}
 	}
 
 	// Remove anexos da anamnese sem afetar os documentos gerais do aprendente.
 	async function removeAnamneseDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
 
-		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
-		updateSelectedLearner({
-			anamneseDocuments: selectedLearner.anamneseDocuments.filter((item) => item.id !== document.id)
-		});
+		if (!(await confirmDeletion(`Excluir o anexo "${document.name}" da anamnese?`))) return;
+
+		try {
+			await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+			updateSelectedLearner({
+				anamneseDocuments: selectedLearner.anamneseDocuments.filter((item) => item.id !== document.id)
+			});
+			banner = {
+				tone: 'success',
+				text: 'Anexo da anamnese excluido.'
+			};
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir o anexo.'
+			};
+		}
 	}
 
 	// Registra relatorios com carimbo de criacao e atualizacao.
@@ -892,13 +1195,21 @@
 	}
 
 	// Remove um relatorio mantendo os demais registros historicos intactos.
-	function removeReport(id: string) {
+	async function removeReport(id: string) {
 		if (!selectedLearner) return;
+		const report = selectedLearner.reports.find((item) => item.id === id);
+		if (!report) return;
+
+		if (!(await confirmDeletion('Excluir este relatorio do aprendente?'))) return;
 
 		const nextLearner = removeReportFromLearner(selectedLearner, id);
 		updateSelectedLearner({
 			reports: nextLearner.reports
 		});
+		banner = {
+			tone: 'success',
+			text: 'Relatorio excluido.'
+		};
 	}
 
 	// Encerra a sessao local e retorna para login.
@@ -911,6 +1222,8 @@
 <svelte:head>
 	<title>PsicoSistem | Painel</title>
 </svelte:head>
+
+<svelte:window onkeydown={handleDeletionConfirmationKeydown} />
 
 {#if !session}
 	<!-- Estado de carregamento antes de validar a sessao local. -->
@@ -951,6 +1264,11 @@
 					{searchTerm}
 					{userName}
 					{theme}
+					searchPlaceholder={
+						activeSection === 'comunicacoes'
+							? 'Buscar familia, responsavel ou aprendente...'
+							: 'Buscar aprendente ou agendamento...'
+					}
 					onToggleSidebar={toggleSidebar}
 					onSearchTermChange={(value) => (searchTerm = value)}
 					onEditProfile={editProfile}
@@ -996,6 +1314,7 @@
 						onAddContact={addContactToCommunicationFamily}
 						onRemoveContact={removeContactFromCommunicationFamily}
 						onSelectFamily={selectFamily}
+						onCloseFamily={closeFamily}
 					/>
 				{:else}
 
@@ -1006,6 +1325,7 @@
 						{selectedLearnerId}
 						{selectedLearner}
 						{learnerFilter}
+						{guardianOptions}
 						{showAddForm}
 						{detailTab}
 						calendarDays={selectedLearnerCalendarDays}
@@ -1017,6 +1337,7 @@
 						onOpenAddForm={() => (showAddForm = true)}
 						onCloseAddForm={() => (showAddForm = false)}
 						onCreateLearner={handleCreateLearner}
+						onDeleteLearner={deleteLearner}
 						onSelectLearner={selectLearner}
 						onSetLearnerFilter={(filter) => (learnerFilter = filter)}
 						onSelectTab={(tab) => (detailTab = tab)}
@@ -1042,5 +1363,46 @@
 				{/if}
 			</section>
 		</div>
+
+		{#if deletionConfirmation}
+			<div class="confirmation-overlay" role="presentation">
+				<button
+					type="button"
+					class="confirmation-backdrop"
+					aria-label="Cancelar exclusao"
+					onclick={() => closeDeletionConfirmation(false)}
+				></button>
+
+				<div
+					class="confirmation-dialog"
+					role="dialog"
+					aria-modal="true"
+					aria-labelledby="deletion-confirmation-title"
+				>
+					<div class="confirmation-icon" aria-hidden="true">!</div>
+					<div class="confirmation-copy">
+						<span>Acao irreversivel</span>
+						<h2 id="deletion-confirmation-title">{deletionConfirmation.title}</h2>
+						<p>{deletionConfirmation.message}</p>
+					</div>
+					<div class="confirmation-actions">
+						<button
+							type="button"
+							class="secondary-button"
+							onclick={() => closeDeletionConfirmation(false)}
+						>
+							{deletionConfirmation.cancelLabel}
+						</button>
+						<button
+							type="button"
+							class="danger-button confirmation-danger"
+							onclick={() => closeDeletionConfirmation(true)}
+						>
+							{deletionConfirmation.confirmLabel}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 {/if}

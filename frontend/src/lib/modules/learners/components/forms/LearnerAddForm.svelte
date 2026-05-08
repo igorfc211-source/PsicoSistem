@@ -1,19 +1,31 @@
 <script lang="ts">
-	import { createDefaultLearnerInput, type NewLearnerInput } from '$lib/modules/learners';
+	import {
+		RELATIONSHIP_OPTIONS,
+		createEmptyLearnerGuardianInput,
+		createDefaultLearnerInput,
+		normalizePhone,
+		type GuardianOption,
+		type NewLearnerInput
+	} from '$lib/modules/learners';
 	import LearnerAvatar from '../avatar/LearnerAvatar.svelte';
 
 	let {
 		onCreate,
-		onCancel
+		onCancel,
+		guardianOptions
 	} = $props<{
 		onCreate: (input: NewLearnerInput) => boolean;
 		onCancel: () => void;
+		guardianOptions: GuardianOption[];
 	}>();
 
 	let form = $state<NewLearnerInput>(createDefaultLearnerInput());
 	let sessionPriceValue = $state('');
+	let generalValue = $state('');
 	let isProcessingPhoto = $state(false);
 	let photoError = $state('');
+
+	const guardianIndexes = [0, 1];
 
 	function parseCurrencyToCents(value: string) {
 		const normalizedValue = value.replace(/[^\d,.-]/g, '').replace(',', '.').trim();
@@ -77,6 +89,92 @@
 		form.sessionPriceCents = parseCurrencyToCents(input.value);
 	}
 
+	function handleGeneralValueInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		generalValue = input.value;
+		form.generalValueCents = parseCurrencyToCents(input.value);
+	}
+
+	function getGuardian(index: number) {
+		return form.guardians[index] ?? createEmptyLearnerGuardianInput();
+	}
+
+	function updateGuardian(index: number, patch: Partial<NewLearnerInput['guardians'][number]>) {
+		const guardians = [...form.guardians];
+		guardians[index] = {
+			...createEmptyLearnerGuardianInput(),
+			...getGuardian(index),
+			...patch
+		};
+		form = {
+			...form,
+			guardians
+		};
+		syncPrimaryGuardianFields();
+	}
+
+	function syncPrimaryGuardianFields() {
+		const primaryGuardian = form.guardians.find((guardian) => guardian.name.trim());
+		form = {
+			...form,
+			guardian: primaryGuardian?.name ?? '',
+			guardianRelationship: primaryGuardian?.relationship ?? ''
+		};
+	}
+
+	function handleExistingGuardianSelection(event: Event, index: number) {
+		const key = (event.currentTarget as HTMLSelectElement).value;
+		const option = guardianOptions.find((item: GuardianOption) => item.key === key);
+
+		if (!option) {
+			updateGuardian(index, createEmptyLearnerGuardianInput());
+			return;
+		}
+
+		updateGuardian(index, {
+			sourceKey: option.key,
+			name: option.name,
+			relationship: option.relationship,
+			phone: option.phone
+		});
+	}
+
+	function handleGuardianNameInput(event: Event, index: number) {
+		updateGuardian(index, {
+			sourceKey: '',
+			name: (event.currentTarget as HTMLInputElement).value
+		});
+	}
+
+	function handleGuardianRelationshipChange(event: Event, index: number) {
+		updateGuardian(index, {
+			relationship: (event.currentTarget as HTMLSelectElement).value
+		});
+	}
+
+	function handleGuardianPhoneInput(event: Event, index: number) {
+		updateGuardian(index, {
+			phone: normalizePhone((event.currentTarget as HTMLInputElement).value).slice(0, 11)
+		});
+	}
+
+	function formatPhoneInput(phone: string) {
+		const digits = normalizePhone(phone).slice(0, 11);
+		if (digits.length <= 2) return digits;
+		if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+		if (digits.length <= 10) {
+			return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+		}
+
+		return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+	}
+
+	function isGuardianOptionUsed(optionKey: string, currentIndex: number) {
+		return form.guardians.some(
+			(guardian, index) => index !== currentIndex && guardian.sourceKey === optionKey
+		);
+	}
+
 	// Envia uma copia do formulario para a pagina orquestradora validar e persistir.
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -84,6 +182,7 @@
 		if (onCreate({ ...form })) {
 			form = createDefaultLearnerInput();
 			sessionPriceValue = '';
+			generalValue = '';
 			isProcessingPhoto = false;
 		}
 	}
@@ -136,10 +235,73 @@
 			<input type="text" bind:value={form.age} placeholder="8 anos" />
 		</label>
 
-		<label>
-			<span>Responsavel</span>
-			<input type="text" bind:value={form.guardian} />
-		</label>
+		{#each guardianIndexes as guardianIndex}
+			{@const guardian = getGuardian(guardianIndex)}
+			<section class="guardian-form-section">
+				<div class="guardian-form-head">
+					<strong>Responsavel {guardianIndex + 1}</strong>
+					<span>{guardianIndex === 0 ? 'Obrigatorio' : 'Opcional'}</span>
+				</div>
+
+				<div class="guardian-form-grid">
+					<label>
+						<span>Interligar responsavel existente</span>
+						<select
+							value={guardian.sourceKey}
+							onchange={(event) => handleExistingGuardianSelection(event, guardianIndex)}
+						>
+							<option value="">Cadastrar novo</option>
+							{#each guardianOptions as option}
+								<option
+									value={option.key}
+									disabled={isGuardianOptionUsed(option.key, guardianIndex)}
+								>
+									{option.name}
+								</option>
+							{/each}
+						</select>
+					</label>
+
+					<label>
+						<span>Nome do responsavel</span>
+						<input
+							type="text"
+							value={guardian.name}
+							required={guardianIndex === 0}
+							placeholder="Marina Silva"
+							oninput={(event) => handleGuardianNameInput(event, guardianIndex)}
+						/>
+					</label>
+
+					<label>
+						<span>Parentesco</span>
+						<select
+							value={guardian.relationship}
+							required={guardianIndex === 0 || Boolean(guardian.name.trim())}
+							onchange={(event) => handleGuardianRelationshipChange(event, guardianIndex)}
+						>
+							<option value="">Selecionar</option>
+							{#each RELATIONSHIP_OPTIONS as option}
+								<option value={option}>{option}</option>
+							{/each}
+						</select>
+					</label>
+
+					<label>
+						<span>Numero</span>
+						<input
+							value={formatPhoneInput(guardian.phone)}
+							inputmode="numeric"
+							pattern={'\\([0-9]{2}\\) [0-9]{4,5}-[0-9]{4}'}
+							maxlength="15"
+							placeholder="(11) 99999-9999"
+							title="Informe um numero no formato (xx) xxxxx-xxxx."
+							oninput={(event) => handleGuardianPhoneInput(event, guardianIndex)}
+						/>
+					</label>
+				</div>
+			</section>
+		{/each}
 
 		<label>
 			<span>Status</span>
@@ -172,6 +334,17 @@
 				value={sessionPriceValue}
 				placeholder="150,00"
 				oninput={handleSessionPriceInput}
+			/>
+		</label>
+
+		<label>
+			<span>Valor geral</span>
+			<input
+				type="text"
+				inputmode="decimal"
+				value={generalValue}
+				placeholder="1200,00"
+				oninput={handleGeneralValueInput}
 			/>
 		</label>
 	</div>

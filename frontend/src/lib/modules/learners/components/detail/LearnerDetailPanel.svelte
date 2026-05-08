@@ -1,12 +1,14 @@
 <script lang="ts">
-	import type {
-		ActionPlan,
-		CalendarDay,
-		CoreActionPlanKey,
-		Learner,
-		LearnerDocument,
-		PlanCategory,
-		Visit
+	import { fly } from 'svelte/transition';
+	import {
+		getLearnerGuardianEntries,
+		type ActionPlan,
+		type CalendarDay,
+		type CoreActionPlanKey,
+		type Learner,
+		type LearnerDocument,
+		type PlanCategory,
+		type Visit
 	} from '$lib/modules/learners';
 	import { formatCurrencyFromCents } from '$lib/shared/formatters';
 	import { DETAIL_TABS, type DetailTab } from '../../presentation/types';
@@ -31,6 +33,7 @@
 		onShiftMonth,
 		onSelectCalendarDate,
 		onUpdateLearner,
+		onDeleteLearner,
 		onUpdateActionPlan,
 		onAddCustomActionPlanField,
 		onUpdateCustomActionPlanField,
@@ -59,6 +62,7 @@
 		onShiftMonth: (delta: number) => void;
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateLearner: (patch: Partial<Learner>) => void;
+		onDeleteLearner: (learnerId: string) => void | Promise<void>;
 		onUpdateActionPlan: (key: CoreActionPlanKey, value: string) => void;
 		onAddCustomActionPlanField: (label: string, description: string) => boolean;
 		onUpdateCustomActionPlanField: (fieldId: string, value: string) => void;
@@ -75,95 +79,139 @@
 		onRemoveReport: (id: string) => void;
 		onOpenResponsible: (learner: Learner) => void;
 	}>();
+
+	const learnerGuardians = $derived(learner ? getLearnerGuardianEntries(learner) : []);
 </script>
 
 <aside class="detail-column">
 	{#if learner}
-		<!-- Cabecalho do prontuario: identifica o aprendente e seu status clinico. -->
-		<div class="profile-head">
-			<LearnerAvatar name={learner.name} photoUrl={learner.photoUrl} size="large" />
-			<div>
-				<div class="profile-title">
-					<h2>{learner.name}</h2>
-					<span class={learner.status}>{learner.status === 'active' ? 'Ativo' : 'Inativo'}</span>
+		{#key learner.id}
+			<div
+				class="detail-motion"
+				in:fly={{ x: 18, duration: 180 }}
+				out:fly={{ x: -12, duration: 120 }}
+			>
+				<!-- Cabecalho do prontuario: identifica o aprendente e seu status clinico. -->
+				<div class="profile-head">
+					<LearnerAvatar name={learner.name} photoUrl={learner.photoUrl} size="large" />
+					<div>
+						<div class="profile-title">
+							<h2>{learner.name}</h2>
+							<span class={learner.status}>{learner.status === 'active' ? 'Ativo' : 'Inativo'}</span>
+						</div>
+						<p>{learner.age || 'Idade nao informada'} - {learner.gender || 'Genero nao informado'}</p>
+						<div class="profile-responsible-row">
+							<div class="profile-responsible-list">
+								{#if learnerGuardians.length}
+									{#each learnerGuardians as responsible, index}
+										<p>
+											Responsavel {index + 1}: {responsible.name}
+											{responsible.relationship ? ` (${responsible.relationship})` : ''}
+										</p>
+									{/each}
+								{:else}
+									<p>Responsavel: Nao informado</p>
+								{/if}
+							</div>
+							{#if learnerGuardians.length}
+								<button type="button" onclick={() => onOpenResponsible(learner)}>Abrir</button>
+							{/if}
+						</div>
+						<p>
+							Valor por sessao:
+							{learner.sessionPriceCents > 0
+								? formatCurrencyFromCents(learner.sessionPriceCents)
+								: 'Nao informado'}
+						</p>
+						<p>
+							Valor geral:
+							{learner.generalValueCents > 0
+								? formatCurrencyFromCents(learner.generalValueCents)
+								: 'Nao informado'}
+						</p>
+					</div>
+					<div class="profile-head-actions">
+						<button
+							type="button"
+							class="danger-button"
+							onclick={() => onDeleteLearner(learner.id)}
+						>
+							Excluir aprendente
+						</button>
+					</div>
 				</div>
-				<p>{learner.age || 'Idade nao informada'} - {learner.gender || 'Genero nao informado'}</p>
-				<div class="profile-responsible-row">
-					<p>Responsavel: {learner.guardian || 'Nao informado'}</p>
-					{#if learner.guardian}
-						<button type="button" onclick={() => onOpenResponsible(learner)}>Abrir</button>
-					{/if}
-				</div>
-				<p>
-					Valor por sessao:
-					{learner.sessionPriceCents > 0
-						? formatCurrencyFromCents(learner.sessionPriceCents)
-						: 'Nao informado'}
-				</p>
+
+				<!-- Navegacao interna: cada aba isola uma area funcional do prontuario. -->
+				<nav class="detail-tabs" aria-label="Secoes do aprendente">
+					{#each DETAIL_TABS as tab}
+						<button
+							type="button"
+							class:active={detailTab === tab.value}
+							onclick={() => onSelectTab(tab.value)}
+						>
+							{tab.label}
+						</button>
+					{/each}
+				</nav>
+
+				<!-- Conteudo da aba ativa: mantem cada secao separada em seu proprio componente. -->
+				{#key `${learner.id}-${detailTab}`}
+					<div
+						class="tab-motion"
+						in:fly={{ x: 16, duration: 170 }}
+						out:fly={{ x: -10, duration: 110 }}
+					>
+						{#if detailTab === 'resumo'}
+							<SummaryTab learner={learner} onOpenAgenda={() => onSelectTab('agenda')} />
+						{:else if detailTab === 'agenda'}
+							<AgendaTab
+								{calendarDays}
+								{monthLabel}
+								{selectedDate}
+								{selectedVisit}
+								onShiftMonth={onShiftMonth}
+								onSelectCalendarDate={onSelectCalendarDate}
+								onUpdateVisit={onUpdateVisit}
+								onRemoveVisit={onRemoveVisit}
+							/>
+						{:else if detailTab === 'anamnese'}
+							<AnamneseTab
+								value={learner.anamnese}
+								documents={learner.anamneseDocuments}
+								{isUploading}
+								onChange={(value) => onUpdateLearner({ anamnese: value })}
+								onUpload={onUploadAnamneseDocuments}
+								onDownload={onDownloadAnamneseDocument}
+								onRemove={onRemoveAnamneseDocument}
+							/>
+						{:else if detailTab === 'documentos'}
+							<DocumentsTab
+								documents={learner.documents}
+								{isUploading}
+								onUpload={onUploadDocuments}
+								onDownload={onDownloadDocument}
+								onRemove={onRemoveDocument}
+							/>
+						{:else if detailTab === 'plano'}
+							<ActionPlanTab
+								actionPlan={learner.actionPlan}
+								categories={planCategories}
+								onChange={onUpdateActionPlan}
+								onAddCustomField={onAddCustomActionPlanField}
+								onChangeCustomField={onUpdateCustomActionPlanField}
+								onRemoveCustomField={onRemoveCustomActionPlanField}
+							/>
+						{:else}
+							<ReportsTab
+								reports={learner.reports}
+								onAddReport={onAddReport}
+								onRemoveReport={onRemoveReport}
+							/>
+						{/if}
+					</div>
+				{/key}
 			</div>
-		</div>
-
-		<!-- Navegacao interna: cada aba isola uma area funcional do prontuario. -->
-		<nav class="detail-tabs" aria-label="Secoes do aprendente">
-			{#each DETAIL_TABS as tab}
-				<button
-					type="button"
-					class:active={detailTab === tab.value}
-					onclick={() => onSelectTab(tab.value)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</nav>
-
-		<!-- Conteudo da aba ativa: mantem cada secao separada em seu proprio componente. -->
-		{#if detailTab === 'resumo'}
-			<SummaryTab learner={learner} onOpenAgenda={() => onSelectTab('agenda')} />
-		{:else if detailTab === 'agenda'}
-			<AgendaTab
-				{calendarDays}
-				{monthLabel}
-				{selectedDate}
-				{selectedVisit}
-				onShiftMonth={onShiftMonth}
-				onSelectCalendarDate={onSelectCalendarDate}
-				onUpdateVisit={onUpdateVisit}
-				onRemoveVisit={onRemoveVisit}
-			/>
-		{:else if detailTab === 'anamnese'}
-			<AnamneseTab
-				value={learner.anamnese}
-				documents={learner.anamneseDocuments}
-				{isUploading}
-				onChange={(value) => onUpdateLearner({ anamnese: value })}
-				onUpload={onUploadAnamneseDocuments}
-				onDownload={onDownloadAnamneseDocument}
-				onRemove={onRemoveAnamneseDocument}
-			/>
-		{:else if detailTab === 'documentos'}
-			<DocumentsTab
-				documents={learner.documents}
-				{isUploading}
-				onUpload={onUploadDocuments}
-				onDownload={onDownloadDocument}
-				onRemove={onRemoveDocument}
-			/>
-		{:else if detailTab === 'plano'}
-			<ActionPlanTab
-				actionPlan={learner.actionPlan}
-				categories={planCategories}
-				onChange={onUpdateActionPlan}
-				onAddCustomField={onAddCustomActionPlanField}
-				onChangeCustomField={onUpdateCustomActionPlanField}
-				onRemoveCustomField={onRemoveCustomActionPlanField}
-			/>
-		{:else}
-			<ReportsTab
-				reports={learner.reports}
-				onAddReport={onAddReport}
-				onRemoveReport={onRemoveReport}
-			/>
-		{/if}
+		{/key}
 	{:else}
 		<!-- Estado vazio da coluna de detalhe quando nenhum aprendente foi selecionado. -->
 		<div class="empty-state">Selecione ou adicione um aprendente.</div>
