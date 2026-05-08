@@ -78,19 +78,21 @@ type LearnerRecord struct {
 	EndDate           string    `json:"end_date"`
 	VisitCount        int       `json:"visit_count"`
 	SessionPriceCents int64     `json:"session_price_cents"`
+	GeneralValueCents int64     `json:"general_value_cents"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type GuardianRecord struct {
-	ID        string    `json:"id"`
-	TenantID  string    `json:"tenant_id"`
-	Name      string    `json:"name"`
-	Phone     string    `json:"phone"`
-	Address   string    `json:"address"`
-	CPF       string    `json:"cpf,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	TenantID     string    `json:"tenant_id"`
+	Name         string    `json:"name"`
+	Relationship string    `json:"relationship"`
+	Phone        string    `json:"phone"`
+	Address      string    `json:"address"`
+	CPF          string    `json:"cpf,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type LearnerGuardianRecord struct {

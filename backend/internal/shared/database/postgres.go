@@ -112,19 +112,23 @@ func (p *Postgres) EnsureSchema(ctx context.Context) error {
 			end_date TEXT NOT NULL DEFAULT '',
 			visit_count INTEGER NOT NULL DEFAULT 0,
 			session_price_cents BIGINT NOT NULL DEFAULT 0,
+			general_value_cents BIGINT NOT NULL DEFAULT 0,
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE learners ADD COLUMN IF NOT EXISTS general_value_cents BIGINT NOT NULL DEFAULT 0`,
 		`CREATE TABLE IF NOT EXISTS guardians (
 			id UUID PRIMARY KEY,
 			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 			name TEXT NOT NULL,
+			relationship TEXT NOT NULL DEFAULT '',
 			phone TEXT NOT NULL,
 			address TEXT NOT NULL,
 			cpf TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMPTZ NOT NULL,
 			updated_at TIMESTAMPTZ NOT NULL
 		)`,
+		`ALTER TABLE guardians ADD COLUMN IF NOT EXISTS relationship TEXT NOT NULL DEFAULT ''`,
 		`CREATE TABLE IF NOT EXISTS learner_guardians (
 			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 			learner_id UUID NOT NULL REFERENCES learners(id) ON DELETE CASCADE,

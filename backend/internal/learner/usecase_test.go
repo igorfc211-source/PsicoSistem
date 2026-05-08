@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestCreateLearnerPersistsSessionPrice(t *testing.T) {
+func TestCreateLearnerPersistsFinancialValues(t *testing.T) {
 	t.Parallel()
 
 	learnerUsecase, guardianUsecase, owner := buildLearnerUsecase(t, "clinica-preco@teste.com", "19999999999", "11444777000161")
@@ -32,12 +32,16 @@ func TestCreateLearnerPersistsSessionPrice(t *testing.T) {
 		Status:            learnerdomain.StatusActive,
 		VisitCount:        8,
 		SessionPriceCents: 15000,
+		GeneralValueCents: 120000,
 	})
 	if err != nil {
 		t.Fatalf("create learner: %v", err)
 	}
 	if created.SessionPriceCents != 15000 {
 		t.Fatalf("expected session price 15000, got %d", created.SessionPriceCents)
+	}
+	if created.GeneralValueCents != 120000 {
+		t.Fatalf("expected general value 120000, got %d", created.GeneralValueCents)
 	}
 
 	found, err := learnerUsecase.Get(context.Background(), owner, created.ID)
@@ -46,6 +50,9 @@ func TestCreateLearnerPersistsSessionPrice(t *testing.T) {
 	}
 	if found.SessionPriceCents != 15000 {
 		t.Fatalf("expected stored session price 15000, got %d", found.SessionPriceCents)
+	}
+	if found.GeneralValueCents != 120000 {
+		t.Fatalf("expected stored general value 120000, got %d", found.GeneralValueCents)
 	}
 	if len(found.GuardianIDs) != 1 || found.GuardianIDs[0] != guardian.ID {
 		t.Fatalf("expected stored guardian id %s, got %#v", guardian.ID, found.GuardianIDs)
@@ -69,6 +76,26 @@ func TestCreateLearnerRejectsNegativeSessionPrice(t *testing.T) {
 	appErr := sharederrors.AsAppError(err)
 	if appErr == nil || appErr.Code != "INVALID_SESSION_PRICE" {
 		t.Fatalf("expected INVALID_SESSION_PRICE error, got %#v", appErr)
+	}
+}
+
+func TestCreateLearnerRejectsNegativeGeneralValue(t *testing.T) {
+	t.Parallel()
+
+	learnerUsecase, _, owner := buildLearnerUsecase(t, "clinica-valor-geral-negativo@teste.com", "19666666666", "52998224725")
+
+	_, err := learnerUsecase.Create(context.Background(), owner, learnerdomain.CreateInput{
+		Name:              "Davi Costa",
+		Status:            learnerdomain.StatusActive,
+		GeneralValueCents: -1,
+	})
+	if err == nil {
+		t.Fatalf("expected validation error")
+	}
+
+	appErr := sharederrors.AsAppError(err)
+	if appErr == nil || appErr.Code != "INVALID_GENERAL_VALUE" {
+		t.Fatalf("expected INVALID_GENERAL_VALUE error, got %#v", appErr)
 	}
 }
 

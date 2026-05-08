@@ -22,6 +22,7 @@ type CreateInput struct {
 	EndDate           string      `json:"end_date"`
 	VisitCount        int         `json:"visit_count"`
 	SessionPriceCents int64       `json:"session_price_cents"`
+	GeneralValueCents int64       `json:"general_value_cents"`
 	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
 }
 
@@ -36,6 +37,7 @@ type UpdateInput struct {
 	EndDate           string      `json:"end_date"`
 	VisitCount        int         `json:"visit_count"`
 	SessionPriceCents int64       `json:"session_price_cents"`
+	GeneralValueCents int64       `json:"general_value_cents"`
 	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
 }
 
@@ -59,6 +61,7 @@ type Response struct {
 	EndDate           string      `json:"end_date"`
 	VisitCount        int         `json:"visit_count"`
 	SessionPriceCents int64       `json:"session_price_cents"`
+	GeneralValueCents int64       `json:"general_value_cents"`
 	GuardianIDs       []uuid.UUID `json:"guardian_ids"`
 	CreatedAt         time.Time   `json:"created_at"`
 	UpdatedAt         time.Time   `json:"updated_at"`
@@ -89,6 +92,7 @@ func ToResponse(item *Learner) *Response {
 		EndDate:           item.EndDate,
 		VisitCount:        item.VisitCount,
 		SessionPriceCents: item.SessionPriceCents,
+		GeneralValueCents: item.GeneralValueCents,
 		GuardianIDs:       append([]uuid.UUID(nil), item.GuardianIDs...),
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,

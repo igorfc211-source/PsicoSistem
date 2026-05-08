@@ -57,21 +57,22 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 		return nil, sharederrors.Forbidden("you do not have permission to create guardians")
 	}
 
-	normalized, err := normalizeInput(input.Name, input.Phone, input.Address, input.CPF)
+	normalized, err := normalizeInput(input.Name, input.Relationship, input.Phone, input.Address, input.CPF)
 	if err != nil {
 		return nil, err
 	}
 
 	now := time.Now()
 	item := &Guardian{
-		ID:        uuid.New(),
-		TenantID:  actor.TenantID,
-		Name:      normalized.name,
-		Phone:     normalized.phone,
-		Address:   normalized.address,
-		CPF:       normalized.cpf,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:           uuid.New(),
+		TenantID:     actor.TenantID,
+		Name:         normalized.name,
+		Relationship: normalized.relationship,
+		Phone:        normalized.phone,
+		Address:      normalized.address,
+		CPF:          normalized.cpf,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	if err := u.repo.Create(ctx, item); err != nil {
@@ -86,7 +87,7 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, guardianI
 		return nil, sharederrors.Forbidden("you do not have permission to update guardians")
 	}
 
-	normalized, err := normalizeInput(input.Name, input.Phone, input.Address, input.CPF)
+	normalized, err := normalizeInput(input.Name, input.Relationship, input.Phone, input.Address, input.CPF)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +98,7 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, guardianI
 	}
 
 	item.Name = normalized.name
+	item.Relationship = normalized.relationship
 	item.Phone = normalized.phone
 	item.Address = normalized.address
 	item.CPF = normalized.cpf
@@ -126,13 +128,14 @@ func (u *Usecase) Delete(ctx context.Context, actor security.Identity, guardianI
 }
 
 type normalizedInput struct {
-	name    string
-	phone   string
-	address string
-	cpf     string
+	name         string
+	relationship string
+	phone        string
+	address      string
+	cpf          string
 }
 
-func normalizeInput(name string, phone string, address string, cpf string) (normalizedInput, error) {
+func normalizeInput(name string, relationship string, phone string, address string, cpf string) (normalizedInput, error) {
 	if err := sharedvalidator.ValidateName(name); err != nil {
 		return normalizedInput{}, err
 	}
@@ -154,10 +157,11 @@ func normalizeInput(name string, phone string, address string, cpf string) (norm
 	}
 
 	return normalizedInput{
-		name:    strings.TrimSpace(name),
-		phone:   sharedvalidator.NormalizePhone(phone),
-		address: strings.TrimSpace(address),
-		cpf:     normalizedCPF,
+		name:         strings.TrimSpace(name),
+		relationship: strings.TrimSpace(relationship),
+		phone:        sharedvalidator.NormalizePhone(phone),
+		address:      strings.TrimSpace(address),
+		cpf:          normalizedCPF,
 	}, nil
 }
 

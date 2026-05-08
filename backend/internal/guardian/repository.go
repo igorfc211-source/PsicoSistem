@@ -73,6 +73,7 @@ func (r *JSONRepository) ListByTenant(_ context.Context, tenantID uuid.UUID, inp
 				search := strings.ToLower(input.Search)
 				searchText := strings.ToLower(strings.Join([]string{
 					record.Name,
+					record.Relationship,
 					record.Phone,
 					record.Address,
 					record.CPF,
@@ -203,14 +204,15 @@ func (r *JSONRepository) CountLearnersByGuardian(_ context.Context, tenantID uui
 
 func toRecord(item *Guardian) database.GuardianRecord {
 	return database.GuardianRecord{
-		ID:        item.ID.String(),
-		TenantID:  item.TenantID.String(),
-		Name:      item.Name,
-		Phone:     item.Phone,
-		Address:   item.Address,
-		CPF:       item.CPF,
-		CreatedAt: item.CreatedAt,
-		UpdatedAt: item.UpdatedAt,
+		ID:           item.ID.String(),
+		TenantID:     item.TenantID.String(),
+		Name:         item.Name,
+		Relationship: item.Relationship,
+		Phone:        item.Phone,
+		Address:      item.Address,
+		CPF:          item.CPF,
+		CreatedAt:    item.CreatedAt,
+		UpdatedAt:    item.UpdatedAt,
 	}
 }
 
@@ -225,15 +227,16 @@ func fromRecord(record database.GuardianRecord, learnerIDs []uuid.UUID) (*Guardi
 	}
 
 	return &Guardian{
-		ID:         id,
-		TenantID:   tenantID,
-		Name:       record.Name,
-		Phone:      record.Phone,
-		Address:    record.Address,
-		CPF:        record.CPF,
-		LearnerIDs: learnerIDs,
-		CreatedAt:  record.CreatedAt,
-		UpdatedAt:  record.UpdatedAt,
+		ID:           id,
+		TenantID:     tenantID,
+		Name:         record.Name,
+		Relationship: record.Relationship,
+		Phone:        record.Phone,
+		Address:      record.Address,
+		CPF:          record.CPF,
+		LearnerIDs:   learnerIDs,
+		CreatedAt:    record.CreatedAt,
+		UpdatedAt:    record.UpdatedAt,
 	}, nil
 }
 

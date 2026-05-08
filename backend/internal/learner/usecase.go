@@ -75,7 +75,7 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 	}
 
 	status := normalizeStatus(input.Status)
-	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents); err != nil {
+	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents, input.GeneralValueCents); err != nil {
 		return nil, err
 	}
 	guardianIDs, err := normalizeGuardianIDs(input.GuardianIDs)
@@ -108,6 +108,7 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 		EndDate:           strings.TrimSpace(input.EndDate),
 		VisitCount:        input.VisitCount,
 		SessionPriceCents: input.SessionPriceCents,
+		GeneralValueCents: input.GeneralValueCents,
 		GuardianIDs:       guardianIDs,
 		CreatedAt:         now,
 		UpdatedAt:         now,
@@ -129,7 +130,7 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, learnerID
 	}
 
 	status := normalizeStatus(input.Status)
-	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents); err != nil {
+	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents, input.GeneralValueCents); err != nil {
 		return nil, err
 	}
 	guardianIDs, err := normalizeGuardianIDs(input.GuardianIDs)
@@ -163,6 +164,7 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, learnerID
 	item.EndDate = strings.TrimSpace(input.EndDate)
 	item.VisitCount = input.VisitCount
 	item.SessionPriceCents = input.SessionPriceCents
+	item.GeneralValueCents = input.GeneralValueCents
 	item.GuardianIDs = guardianIDs
 	item.UpdatedAt = time.Now()
 
@@ -202,7 +204,7 @@ func (u *Usecase) ensurePatientCapacity(ctx context.Context, tenantID uuid.UUID)
 	return nil
 }
 
-func validateLearnerInput(name string, status string, visitCount int, sessionPriceCents int64) error {
+func validateLearnerInput(name string, status string, visitCount int, sessionPriceCents int64, generalValueCents int64) error {
 	if err := sharedvalidator.ValidateName(name); err != nil {
 		return err
 	}
@@ -214,6 +216,9 @@ func validateLearnerInput(name string, status string, visitCount int, sessionPri
 	}
 	if sessionPriceCents < 0 {
 		return sharederrors.Invalid("INVALID_SESSION_PRICE", "session_price_cents cannot be negative")
+	}
+	if generalValueCents < 0 {
+		return sharederrors.Invalid("INVALID_GENERAL_VALUE", "general_value_cents cannot be negative")
 	}
 
 	return nil

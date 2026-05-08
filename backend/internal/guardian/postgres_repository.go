@@ -21,12 +21,13 @@ func NewPostgresRepository(pool *pgxpool.Pool) *PostgresRepository {
 func (r *PostgresRepository) Create(ctx context.Context, item *Guardian) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO guardians (
-			id, tenant_id, name, phone, address, cpf, created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+			id, tenant_id, name, relationship, phone, address, cpf, created_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 	`,
 		item.ID,
 		item.TenantID,
 		item.Name,
+		item.Relationship,
 		item.Phone,
 		item.Address,
 		item.CPF,
@@ -42,7 +43,7 @@ func (r *PostgresRepository) Create(ctx context.Context, item *Guardian) error {
 
 func (r *PostgresRepository) GetByIDAndTenant(ctx context.Context, tenantID uuid.UUID, guardianID uuid.UUID) (*Guardian, error) {
 	row := r.pool.QueryRow(ctx, `
-		SELECT id, tenant_id, name, phone, address, cpf, created_at, updated_at
+		SELECT id, tenant_id, name, relationship, phone, address, cpf, created_at, updated_at
 		FROM guardians
 		WHERE id = $1 AND tenant_id = $2
 	`, guardianID, tenantID)
@@ -63,12 +64,13 @@ func (r *PostgresRepository) GetByIDAndTenant(ctx context.Context, tenantID uuid
 
 func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, input ListInput) ([]Guardian, int, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, tenant_id, name, phone, address, cpf, created_at, updated_at
+		SELECT id, tenant_id, name, relationship, phone, address, cpf, created_at, updated_at
 		FROM guardians
 		WHERE tenant_id = $1
 		  AND (
 		  	$2 = ''
 		  	OR LOWER(name) LIKE '%' || LOWER($2) || '%'
+		  	OR LOWER(relationship) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(phone) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(address) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(cpf) LIKE '%' || LOWER($2) || '%'
@@ -103,6 +105,7 @@ func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUI
 		  AND (
 		  	$2 = ''
 		  	OR LOWER(name) LIKE '%' || LOWER($2) || '%'
+		  	OR LOWER(relationship) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(phone) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(address) LIKE '%' || LOWER($2) || '%'
 		  	OR LOWER(cpf) LIKE '%' || LOWER($2) || '%'
@@ -120,10 +123,11 @@ func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUI
 func (r *PostgresRepository) Update(ctx context.Context, item *Guardian) error {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE guardians
-		SET name = $1, phone = $2, address = $3, cpf = $4, updated_at = $5
-		WHERE id = $6 AND tenant_id = $7
+		SET name = $1, relationship = $2, phone = $3, address = $4, cpf = $5, updated_at = $6
+		WHERE id = $7 AND tenant_id = $8
 	`,
 		item.Name,
+		item.Relationship,
 		item.Phone,
 		item.Address,
 		item.CPF,
@@ -252,6 +256,7 @@ func scanGuardian(scanner guardianScanner) (*Guardian, error) {
 		&item.ID,
 		&item.TenantID,
 		&item.Name,
+		&item.Relationship,
 		&item.Phone,
 		&item.Address,
 		&item.CPF,

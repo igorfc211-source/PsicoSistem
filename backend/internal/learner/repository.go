@@ -187,6 +187,7 @@ func toRecord(item *Learner) database.LearnerRecord {
 		EndDate:           item.EndDate,
 		VisitCount:        item.VisitCount,
 		SessionPriceCents: item.SessionPriceCents,
+		GeneralValueCents: item.GeneralValueCents,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
@@ -215,6 +216,7 @@ func fromRecord(record database.LearnerRecord, guardianIDs []uuid.UUID) (*Learne
 		EndDate:           record.EndDate,
 		VisitCount:        record.VisitCount,
 		SessionPriceCents: record.SessionPriceCents,
+		GeneralValueCents: record.GeneralValueCents,
 		GuardianIDs:       guardianIDs,
 		CreatedAt:         record.CreatedAt,
 		UpdatedAt:         record.UpdatedAt,

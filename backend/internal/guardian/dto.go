@@ -10,17 +10,19 @@ import (
 )
 
 type CreateInput struct {
-	Name    string `json:"name"`
-	Phone   string `json:"phone"`
-	Address string `json:"address"`
-	CPF     string `json:"cpf"`
+	Name         string `json:"name"`
+	Relationship string `json:"relationship"`
+	Phone        string `json:"phone"`
+	Address      string `json:"address"`
+	CPF          string `json:"cpf"`
 }
 
 type UpdateInput struct {
-	Name    string `json:"name"`
-	Phone   string `json:"phone"`
-	Address string `json:"address"`
-	CPF     string `json:"cpf"`
+	Name         string `json:"name"`
+	Relationship string `json:"relationship"`
+	Phone        string `json:"phone"`
+	Address      string `json:"address"`
+	CPF          string `json:"cpf"`
 }
 
 type ListInput struct {
@@ -30,15 +32,16 @@ type ListInput struct {
 }
 
 type Response struct {
-	ID         uuid.UUID   `json:"id"`
-	TenantID   uuid.UUID   `json:"tenant_id"`
-	Name       string      `json:"name"`
-	Phone      string      `json:"phone"`
-	Address    string      `json:"address"`
-	CPF        string      `json:"cpf,omitempty"`
-	LearnerIDs []uuid.UUID `json:"learner_ids"`
-	CreatedAt  time.Time   `json:"created_at"`
-	UpdatedAt  time.Time   `json:"updated_at"`
+	ID           uuid.UUID   `json:"id"`
+	TenantID     uuid.UUID   `json:"tenant_id"`
+	Name         string      `json:"name"`
+	Relationship string      `json:"relationship"`
+	Phone        string      `json:"phone"`
+	Address      string      `json:"address"`
+	CPF          string      `json:"cpf,omitempty"`
+	LearnerIDs   []uuid.UUID `json:"learner_ids"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
 }
 
 type ListMeta struct {
@@ -54,15 +57,16 @@ func ToResponse(item *Guardian) *Response {
 	}
 
 	return &Response{
-		ID:         item.ID,
-		TenantID:   item.TenantID,
-		Name:       item.Name,
-		Phone:      item.Phone,
-		Address:    item.Address,
-		CPF:        item.CPF,
-		LearnerIDs: append([]uuid.UUID(nil), item.LearnerIDs...),
-		CreatedAt:  item.CreatedAt,
-		UpdatedAt:  item.UpdatedAt,
+		ID:           item.ID,
+		TenantID:     item.TenantID,
+		Name:         item.Name,
+		Relationship: item.Relationship,
+		Phone:        item.Phone,
+		Address:      item.Address,
+		CPF:          item.CPF,
+		LearnerIDs:   append([]uuid.UUID(nil), item.LearnerIDs...),
+		CreatedAt:    item.CreatedAt,
+		UpdatedAt:    item.UpdatedAt,
 	}
 }
 

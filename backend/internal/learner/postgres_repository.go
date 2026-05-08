@@ -21,9 +21,9 @@ func (r *PostgresRepository) Create(ctx context.Context, item *Learner) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO learners (
 			id, tenant_id, name, photo_url, gender, guardian, age, status,
-			start_date, end_date, visit_count, session_price_cents,
+			start_date, end_date, visit_count, session_price_cents, general_value_cents,
 			created_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 	`,
 		item.ID,
 		item.TenantID,
@@ -37,6 +37,7 @@ func (r *PostgresRepository) Create(ctx context.Context, item *Learner) error {
 		item.EndDate,
 		item.VisitCount,
 		item.SessionPriceCents,
+		item.GeneralValueCents,
 		item.CreatedAt,
 		item.UpdatedAt,
 	)
@@ -50,7 +51,7 @@ func (r *PostgresRepository) Create(ctx context.Context, item *Learner) error {
 func (r *PostgresRepository) GetByIDAndTenant(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) (*Learner, error) {
 	row := r.pool.QueryRow(ctx, `
 		SELECT id, tenant_id, name, photo_url, gender, guardian, age, status,
-		       start_date, end_date, visit_count, session_price_cents,
+		       start_date, end_date, visit_count, session_price_cents, general_value_cents,
 		       created_at, updated_at
 		FROM learners
 		WHERE id = $1 AND tenant_id = $2
@@ -88,7 +89,7 @@ func (r *PostgresRepository) ExistsByIDAndTenant(ctx context.Context, tenantID u
 func (r *PostgresRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, input ListInput) ([]Learner, int, error) {
 	filteredRows, err := r.pool.Query(ctx, `
 		SELECT id, tenant_id, name, photo_url, gender, guardian, age, status,
-		       start_date, end_date, visit_count, session_price_cents,
+		       start_date, end_date, visit_count, session_price_cents, general_value_cents,
 		       created_at, updated_at
 		FROM learners
 		WHERE tenant_id = $1
@@ -150,8 +151,9 @@ func (r *PostgresRepository) Update(ctx context.Context, item *Learner) error {
 		UPDATE learners
 		SET name = $1, photo_url = $2, gender = $3, guardian = $4, age = $5,
 		    status = $6, start_date = $7, end_date = $8, visit_count = $9,
-		    session_price_cents = $10, created_at = $11, updated_at = $12
-		WHERE id = $13 AND tenant_id = $14
+		    session_price_cents = $10, general_value_cents = $11, created_at = $12,
+		    updated_at = $13
+		WHERE id = $14 AND tenant_id = $15
 	`,
 		item.Name,
 		item.PhotoURL,
@@ -163,6 +165,7 @@ func (r *PostgresRepository) Update(ctx context.Context, item *Learner) error {
 		item.EndDate,
 		item.VisitCount,
 		item.SessionPriceCents,
+		item.GeneralValueCents,
 		item.CreatedAt,
 		item.UpdatedAt,
 		item.ID,
@@ -228,6 +231,7 @@ func scanLearner(scanner learnerScanner) (*Learner, error) {
 		&item.EndDate,
 		&item.VisitCount,
 		&item.SessionPriceCents,
+		&item.GeneralValueCents,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
