@@ -1,21 +1,26 @@
 <script lang="ts">
 	import type { Visit, VisitKind, VisitStatus } from '../../domain/types';
-	import handleCalendarSection from '../../../../../routes/+page.svelte'
 	let {
 		visit,
 		onUpdateVisit,
-		onRemoveVisit
+		onRemoveVisit,
+		onOpenAgendaWorkspace
 	} = $props<{
 		visit: Visit | null;
 		onUpdateVisit: (visitId: string, patch: Partial<Visit>) => void;
 		onRemoveVisit: (visitId: string) => void;
+		onOpenAgendaWorkspace: () => void;
 	}>();
 </script>
 
 <div class="visit-editor card">
 	<!-- Cabecalho do editor: mostra a data ou orienta a selecionar um dia no calendario. -->
-	<h3 class="flex-1 ">{visit ? visit.date : 'Selecione uma data'}</h3>
-	<button onclick={ } class="w-4px bg-blue-600" >Definir agendamento</button>
+	<div class="visit-editor-head">
+		<h3>{visit ? visit.date : 'Selecione uma data'}</h3>
+		<button type="button" class="schedule-link-button" onclick={onOpenAgendaWorkspace}>
+			Definir agendamento
+		</button>
+	</div>
 
 	{#if visit}
 		<!-- Dados principais da sessao selecionada. -->

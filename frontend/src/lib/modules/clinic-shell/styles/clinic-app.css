@@ -170,6 +170,11 @@ button {
 	min-width: 0;
 }
 
+.workspace-motion {
+	min-width: 0;
+	min-height: 0;
+}
+
 .topbar {
 	display: flex;
 	align-items: center;
@@ -967,6 +972,37 @@ textarea:focus {
 	gap: 16px;
 }
 
+.visit-editor-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.visit-editor-head h3 {
+	min-width: 0;
+}
+
+.schedule-link-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	border: 1px solid rgba(112, 71, 245, 0.28);
+	border-radius: 8px;
+	background: #7047f5;
+	color: #fff;
+	font-weight: 900;
+	padding: 11px 14px;
+	box-shadow: 0 12px 26px rgba(112, 71, 245, 0.22);
+	white-space: nowrap;
+}
+
+.schedule-link-button::after {
+	content: '>';
+	font-weight: 950;
+}
+
 .large-textarea {
 	min-height: 360px;
 }
@@ -1119,7 +1155,7 @@ textarea:focus {
 
 .agenda-workspace {
 	display: grid;
-	grid-template-columns: 294px minmax(0, 1fr);
+	grid-template-columns: minmax(320px, 30%) minmax(0, 1fr);
 	gap: 28px;
 	padding: 34px 30px;
 }
@@ -1208,6 +1244,11 @@ textarea:focus {
 .schedule-list {
 	display: grid;
 	gap: 12px;
+}
+
+.scheduler-composer {
+	display: grid;
+	gap: 14px;
 }
 
 .schedule-card {
@@ -1903,6 +1944,12 @@ textarea:focus {
 	color: #eef2ff;
 }
 
+.clinic-shell.dark-mode .schedule-link-button {
+	border-color: #5d48aa;
+	background: #7047f5;
+	color: #fff;
+}
+
 .clinic-shell.dark-mode .search-box input,
 .clinic-shell.dark-mode .profile-dropdown button,
 .clinic-shell.dark-mode .user-menu,
@@ -2064,6 +2111,7 @@ textarea:focus {
 		.document-toolbar,
 		.document-row,
 		.next-session,
+		.visit-editor-head,
 		.day-scheduler-head,
 		.schedule-card {
 			align-items: stretch;

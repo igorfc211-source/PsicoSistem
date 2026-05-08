@@ -44,6 +44,7 @@
 		onSelectCalendarDate,
 		onUpdateLearner,
 		onUpdateActionPlan,
+		onOpenAgendaWorkspace,
 		onAddCustomActionPlanField,
 		onUpdateCustomActionPlanField,
 		onRemoveCustomActionPlanField,
@@ -84,6 +85,7 @@
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateLearner: (patch: Partial<Learner>) => void;
 		onUpdateActionPlan: (key: CoreActionPlanKey, value: string) => void;
+		onOpenAgendaWorkspace: () => void;
 		onAddCustomActionPlanField: (label: string, description: string) => boolean;
 		onUpdateCustomActionPlanField: (fieldId: string, value: string) => void;
 		onRemoveCustomActionPlanField: (fieldId: string) => void;
@@ -176,6 +178,7 @@
 		onSelectCalendarDate={onSelectCalendarDate}
 		onUpdateLearner={onUpdateLearner}
 		onDeleteLearner={onDeleteLearner}
+		onOpenAgendaWorkspace={onOpenAgendaWorkspace}
 		onUpdateActionPlan={onUpdateActionPlan}
 		onAddCustomActionPlanField={onAddCustomActionPlanField}
 		onUpdateCustomActionPlanField={onUpdateCustomActionPlanField}

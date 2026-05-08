@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { AppSidebar, AppTopbar, WorkspaceBanner } from '$lib/modules/clinic-shell/components';
 	import '$lib/modules/clinic-shell/styles/clinic-app.css';
 	import type { Banner, NavSection } from '$lib/modules/clinic-shell/types';
@@ -864,13 +865,13 @@
 		banner = null;
 	}
 
-
-	function handleCalendarSection(activeSection: String) {
-
-		activeSection = 'Agenda'
+	function openAgendaWorkspace() {
+		activeSection = 'agenda';
 		detailTab = 'agenda';
+		showAddForm = false;
+		isSidebarOpen = false;
+		banner = null;
 	}
-	
 
 	// Remove uma visita e sincroniza a contagem exibida no cadastro do aprendente.
 	async function removeVisit(id: string) {
@@ -1296,88 +1297,92 @@
 
 				<WorkspaceBanner {banner} />
 
-				<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
-				{#if activeSection === 'agenda'}
-					<AgendaWorkspace
-						calendarDays={agendaCalendarDays}
-						{monthLabel}
-						selectedDate={selectedAgendaDate}
-						{currentDateLabel}
-						{learners}
-						{selectedLearnerId}
-						{userName}
-						dayItems={selectedDayItems}
-						{pendingVisits}
-						onShiftMonth={shiftMonth}
-						onSelectCalendarDate={handleCalendarDate}
-						onSelectLearnerId={selectLearnerInsideAgenda}
-						onOpenLearner={selectLearner}
-						onCreateSession={createSessionAppointment}
-						onCreateEvent={createEventAppointment}
-						onRemoveSession={removeSessionAppointment}
-						onRemoveEvent={removeAgendaEvent}
-					/>
-				{:else if activeSection === 'comunicacoes'}
-					<CommunicationsWorkspace
-						{learners}
-						families={communicationFamilies}
-						{selectedFamilyId}
-						{searchTerm}
-						onCreateFamily={createCommunicationFamilyCard}
-						onUpdateFamily={updateCommunicationFamily}
-						onDeleteFamily={deleteCommunicationFamily}
-						onAddResponsible={addResponsibleToCommunicationFamily}
-						onRemoveResponsible={removeResponsibleFromCommunicationFamily}
-						onAddContact={addContactToCommunicationFamily}
-						onRemoveContact={removeContactFromCommunicationFamily}
-						onSelectFamily={selectFamily}
-						onCloseFamily={closeFamily}
-					/>
-				{:else}
-
-					<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
-					<LearnersWorkspace
-						{activeSection}
-						{filteredLearners}
-						{selectedLearnerId}
-						{selectedLearner}
-						{learnerFilter}
-						{guardianOptions}
-						{showAddForm}
-						{detailTab}
-						calendarDays={selectedLearnerCalendarDays}
-						{monthLabel}
-						selectedDate={selectedAgendaDate}
-						{selectedVisit}
-						{isUploading}
-						planCategories={PLAN_CATEGORIES}
-						onOpenAddForm={() => (showAddForm = true)}
-						onCloseAddForm={() => (showAddForm = false)}
-						onCreateLearner={handleCreateLearner}
-						onDeleteLearner={deleteLearner}
-						onSelectLearner={selectLearner}
-						onSetLearnerFilter={(filter) => (learnerFilter = filter)}
-						onSelectTab={(tab) => (detailTab = tab)}
-						onShiftMonth={shiftMonth}
-						onSelectCalendarDate={handleCalendarDate}
-						onUpdateLearner={updateSelectedLearner}
-						onUpdateActionPlan={updateActionPlan}
-						onAddCustomActionPlanField={addCustomActionPlanFieldToSelected}
-						onUpdateCustomActionPlanField={updateCustomActionPlanFieldForSelected}
-						onRemoveCustomActionPlanField={removeCustomActionPlanFieldFromSelected}
-						onUpdateVisit={updateVisit}
-						onRemoveVisit={removeVisit}
-						onUploadDocuments={handleDocumentUpload}
-						onDownloadDocument={downloadDocument}
-						onRemoveDocument={removeDocument}
-						onUploadAnamneseDocuments={handleAnamneseDocumentUpload}
-						onDownloadAnamneseDocument={downloadAnamneseDocument}
-						onRemoveAnamneseDocument={removeAnamneseDocument}
-						onAddReport={addReport}
-						onRemoveReport={removeReport}
-						onOpenResponsible={openLearnerResponsible}
-					/>
-				{/if}
+				{#key activeSection}
+					<div class="workspace-motion" transition:fly={{ y: 16, duration: 280 }}>
+						<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
+						{#if activeSection === 'agenda'}
+							<AgendaWorkspace
+								calendarDays={agendaCalendarDays}
+								{monthLabel}
+								selectedDate={selectedAgendaDate}
+								{currentDateLabel}
+								{learners}
+								{selectedLearnerId}
+								{userName}
+								dayItems={selectedDayItems}
+								{pendingVisits}
+								onShiftMonth={shiftMonth}
+								onSelectCalendarDate={handleCalendarDate}
+								onSelectLearnerId={selectLearnerInsideAgenda}
+								onOpenLearner={selectLearner}
+								onCreateSession={createSessionAppointment}
+								onCreateEvent={createEventAppointment}
+								onRemoveSession={removeSessionAppointment}
+								onRemoveEvent={removeAgendaEvent}
+							/>
+						{:else if activeSection === 'comunicacoes'}
+							<CommunicationsWorkspace
+								{learners}
+								families={communicationFamilies}
+								{selectedFamilyId}
+								{searchTerm}
+								onCreateFamily={createCommunicationFamilyCard}
+								onUpdateFamily={updateCommunicationFamily}
+								onDeleteFamily={deleteCommunicationFamily}
+								onAddResponsible={addResponsibleToCommunicationFamily}
+								onRemoveResponsible={removeResponsibleFromCommunicationFamily}
+								onAddContact={addContactToCommunicationFamily}
+								onRemoveContact={removeContactFromCommunicationFamily}
+								onSelectFamily={selectFamily}
+								onCloseFamily={closeFamily}
+							/>
+						{:else}
+							<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
+							<LearnersWorkspace
+								{activeSection}
+								{filteredLearners}
+								{selectedLearnerId}
+								{selectedLearner}
+								{learnerFilter}
+								{guardianOptions}
+								{showAddForm}
+								{detailTab}
+								calendarDays={selectedLearnerCalendarDays}
+								{monthLabel}
+								selectedDate={selectedAgendaDate}
+								{selectedVisit}
+								{isUploading}
+								planCategories={PLAN_CATEGORIES}
+								onOpenAddForm={() => (showAddForm = true)}
+								onCloseAddForm={() => (showAddForm = false)}
+								onCreateLearner={handleCreateLearner}
+								onDeleteLearner={deleteLearner}
+								onSelectLearner={selectLearner}
+								onSetLearnerFilter={(filter) => (learnerFilter = filter)}
+								onSelectTab={(tab) => (detailTab = tab)}
+								onShiftMonth={shiftMonth}
+								onSelectCalendarDate={handleCalendarDate}
+								onUpdateLearner={updateSelectedLearner}
+								onUpdateActionPlan={updateActionPlan}
+								onOpenAgendaWorkspace={openAgendaWorkspace}
+								onAddCustomActionPlanField={addCustomActionPlanFieldToSelected}
+								onUpdateCustomActionPlanField={updateCustomActionPlanFieldForSelected}
+								onRemoveCustomActionPlanField={removeCustomActionPlanFieldFromSelected}
+								onUpdateVisit={updateVisit}
+								onRemoveVisit={removeVisit}
+								onUploadDocuments={handleDocumentUpload}
+								onDownloadDocument={downloadDocument}
+								onRemoveDocument={removeDocument}
+								onUploadAnamneseDocuments={handleAnamneseDocumentUpload}
+								onDownloadAnamneseDocument={downloadAnamneseDocument}
+								onRemoveAnamneseDocument={removeAnamneseDocument}
+								onAddReport={addReport}
+								onRemoveReport={removeReport}
+								onOpenResponsible={openLearnerResponsible}
+							/>
+						{/if}
+					</div>
+				{/key}
 			</section>
 		</div>
 
