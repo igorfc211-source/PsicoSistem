@@ -9,6 +9,7 @@
 	import {
 		AgendaWorkspace,
 		CommunicationsWorkspace,
+		FinanceWorkspace,
 		LearnersWorkspace
 	} from '$lib/modules/learners/components';
 	import { clearStoredSession, getStoredSession, type StoredSession } from '$lib/auth';
@@ -26,6 +27,7 @@
 		createReportEntry,
 		createSessionVisit,
 		deleteDocumentBlob,
+		fetchBackendLearners,
 		filterLearners,
 		getDocumentBlob,
 		getDocumentStorageKey,
@@ -37,6 +39,7 @@
 		loadCommunicationFamilies,
 		loadHiddenCommunicationSourceKeys,
 		loadLearners,
+		mergeBackendLearners,
 		getCommunicationFamilyResponsibleKeys,
 		normalizeResponsibleKey,
 		patchLearnerInList,
@@ -54,6 +57,7 @@
 		sortVisitsBySchedule,
 		syncCommunicationFamiliesWithLearners,
 		toDateInputValue,
+		updateBackendLearner,
 		updateActionPlanValue,
 		updateCustomActionPlanField,
 		updateVisitInList,
@@ -155,6 +159,10 @@
 	onMount(() => {
 		if (!browser) return;
 
+		void initializeApp();
+	});
+
+	async function initializeApp() {
 		const storedSession = getStoredSession();
 		if (!storedSession) {
 			void goto('/');
@@ -174,7 +182,30 @@
 		selectedFamilyId = null;
 		saveCommunicationFamilies(communicationFamilies);
 		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
-	});
+
+		await syncLearnersFromBackend(storedSession);
+	}
+
+	async function syncLearnersFromBackend(storedSession: StoredSession) {
+		try {
+			const backendLearners = await fetchBackendLearners(storedSession.payload.token);
+			if (!backendLearners.length) return;
+
+			const nextLearners = mergeBackendLearners(learners, backendLearners);
+			learners = nextLearners;
+			persistLearners(nextLearners);
+			syncFamiliesForLearners(nextLearners);
+
+			if (!selectedLearnerId || !nextLearners.some((learner) => learner.id === selectedLearnerId)) {
+				selectedLearnerId = nextLearners[0]?.id ?? null;
+			}
+		} catch {
+			banner = {
+				tone: 'info',
+				text: 'Nao foi possivel sincronizar valores financeiros do backend; mantendo os dados locais.'
+			};
+		}
+	}
 
 	// Abre/fecha o menu lateral mobile sem afetar a navegacao desktop.
 	function toggleSidebar() {
@@ -283,10 +314,60 @@
 
 	// Atualiza qualquer aprendente por id, mantendo a data de edicao em um unico lugar.
 	function updateLearnerById(learnerId: string, patch: Partial<Learner>) {
+		const previousStatus = learners.find((learner) => learner.id === learnerId)?.status;
 		const nextLearners = patchLearnerInList(learners, learnerId, patch);
 		learners = nextLearners;
 		persistLearners(nextLearners);
 		syncFamiliesForLearners(nextLearners);
+
+		if (patch.status && patch.status !== previousStatus) {
+			void syncLearnerStatusWithBackend(learnerId, patch.status, previousStatus);
+		}
+	}
+
+	async function syncLearnerStatusWithBackend(
+		learnerId: string,
+		nextStatus: Learner['status'],
+		previousStatus?: Learner['status']
+	) {
+		if (!session?.payload.token) return;
+
+		const currentLearner = learners.find((learner) => learner.id === learnerId);
+		if (!currentLearner?.backendId) return;
+
+		try {
+			const backendLearner = await updateBackendLearner(session.payload.token, currentLearner);
+			if (!backendLearner) return;
+
+			const nextLearners = mergeBackendLearners(learners, [backendLearner]);
+			learners = nextLearners;
+			persistLearners(nextLearners);
+			syncFamiliesForLearners(nextLearners);
+			banner = {
+				tone: 'success',
+				text: `Status de ${currentLearner.name} atualizado no backend.`
+			};
+		} catch (error) {
+			if (previousStatus) {
+				const stillInDesiredStatus = learners.find((learner) => learner.id === learnerId)?.status === nextStatus;
+				if (stillInDesiredStatus) {
+					const revertedLearners = patchLearnerInList(learners, learnerId, {
+						status: previousStatus
+					});
+					learners = revertedLearners;
+					persistLearners(revertedLearners);
+					syncFamiliesForLearners(revertedLearners);
+				}
+			}
+
+			banner = {
+				tone: 'error',
+				text:
+					error instanceof Error
+						? error.message
+						: 'Nao foi possivel atualizar o status no backend.'
+			};
+		}
 	}
 
 	// Aplica mudancas no aprendente selecionado, usado por anamnese, documentos, plano e agenda.
@@ -818,8 +899,6 @@
 
 		if (section === 'agenda') {
 			detailTab = 'agenda';
-		} else if (section === 'financeiro') {
-			detailTab = 'anamnese';
 		} else if (section === 'comunicacoes') {
 			detailTab = 'relatorios';
 		}
@@ -1298,7 +1377,7 @@
 				<WorkspaceBanner {banner} />
 
 				{#key activeSection}
-					<div class="workspace-motion" transition:fly={{ y: 16, duration: 280 }}>
+					<div class="workspace-motion" transition:fly={{ y: 16, duration: 700 }}>
 						<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
 						{#if activeSection === 'agenda'}
 							<AgendaWorkspace
@@ -1320,6 +1399,8 @@
 								onRemoveSession={removeSessionAppointment}
 								onRemoveEvent={removeAgendaEvent}
 							/>
+						{:else if activeSection === 'financeiro'}
+							<FinanceWorkspace {learners} />
 						{:else if activeSection === 'comunicacoes'}
 							<CommunicationsWorkspace
 								{learners}

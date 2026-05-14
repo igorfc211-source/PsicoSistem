@@ -142,9 +142,16 @@
 		<!-- Toolbar superior: troca de visualizacao e atalho para agendar no dia selecionado. -->
 		<div class="agenda-toolbar">
 			<strong>{currentDateLabel}</strong>
+			{#if isSchedulerComposerOpen == false}
 			<button type="button" class="primary-button" onclick={openSchedulerComposer}>
 				+ Agendar neste dia
 			</button>
+		
+			{:else}
+			<button type="button" class="primary-button" onclick={openSchedulerComposer}>
+				Fechar aba
+			</button>
+			{/if}
 		</div>
 
 		<!-- Linha do tempo diaria: lista, adiciona e remove sessoes/eventos do dia. -->

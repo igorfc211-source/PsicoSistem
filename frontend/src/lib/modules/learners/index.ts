@@ -6,5 +6,6 @@ export * from './domain/plan';
 export * from './domain/types';
 export * from './infrastructure/communication-storage';
 export * from './infrastructure/document-storage';
+export * from './infrastructure/learner-api';
 export * from './infrastructure/learner-storage';
 export * from './presentation/types';

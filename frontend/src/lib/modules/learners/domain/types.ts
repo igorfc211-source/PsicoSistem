@@ -66,6 +66,8 @@ export type CoreActionPlanKey = Exclude<keyof ActionPlan, 'customFields'>;
 
 export type Learner = {
 	id: string;
+	backendId?: string;
+	backendGuardianIds?: string[];
 	name: string;
 	photoUrl: string;
 	gender: string;

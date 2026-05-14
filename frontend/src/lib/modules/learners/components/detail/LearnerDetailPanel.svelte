@@ -7,6 +7,7 @@
 		type CoreActionPlanKey,
 		type Learner,
 		type LearnerDocument,
+		type LearnerStatus,
 		type PlanCategory,
 		type Visit
 	} from '$lib/modules/learners';
@@ -83,6 +84,15 @@
 	}>();
 
 	const learnerGuardians = $derived(learner ? getLearnerGuardianEntries(learner) : []);
+
+	function handleStatusChange(event: Event) {
+		if (!learner) return;
+
+		const status = (event.currentTarget as HTMLSelectElement).value as LearnerStatus;
+		if (status === learner.status) return;
+
+		onUpdateLearner({ status });
+	}
 </script>
 
 <aside class="detail-column">
@@ -99,7 +109,18 @@
 					<div>
 						<div class="profile-title">
 							<h2>{learner.name}</h2>
-							<span class={learner.status}>{learner.status === 'active' ? 'Ativo' : 'Inativo'}</span>
+							<label class="profile-status-field">
+							
+								<select
+									class={learner.status}
+									value={learner.status}
+									onchange={handleStatusChange}
+									aria-label="Alterar status do aprendente"
+								>
+									<option value="active">Ativo</option>
+									<option value="inactive">Inativo</option>
+								</select>
+							</label>
 						</div>
 						<p>{learner.age || 'Idade nao informada'} - {learner.gender || 'Genero nao informado'}</p>
 						<div class="profile-responsible-row">

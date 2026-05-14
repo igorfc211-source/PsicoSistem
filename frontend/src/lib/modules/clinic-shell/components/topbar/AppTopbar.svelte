@@ -54,7 +54,6 @@
 
 	<!-- Area do usuario: notificacoes, avatar e acao de sair da sessao. -->
 	<div class="user-area">
-		<button type="button" class="bell-button" aria-label="Notificacoes">o</button>
 		<div class="user-avatar">{getInitials(userName)}</div>
 		<div class="profile-menu">
 			<button

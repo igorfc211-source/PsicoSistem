@@ -141,7 +141,7 @@
 		<div>
 			<span>Dia selecionado</span>
 			<h2>{selectedDateLabel}</h2>
-			<p>Data NBR 5892: {selectedDate}</p>
+			
 		</div>
 		<strong>{dayItems.length} compromisso{dayItems.length === 1 ? '' : 's'}</strong>
 	</div>
