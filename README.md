@@ -77,6 +77,7 @@ Git Clone https://github.com/igorfc211-source/PsicoSistem
 ````
 
 ## Estrutura
+Backend aberto para adição de infra, (Bucket etc...), tendo configuração inicial para AWS
 
 ```txt
 backend/   API em Go, autenticacao, tenants, usuarios, permissoes e assinaturas
