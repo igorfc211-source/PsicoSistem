@@ -9,6 +9,8 @@ tendo seções que se organizam por prioridade
 
   **tabs da seção de aprendentes**
 - Resumo
+  <img width="1877" height="965" alt="Screenshot_6" src="https://github.com/user-attachments/assets/2935a551-615e-435b-ad91-c6d23a065c5f" />
+
 - Anamnese, aonde pode-se escrever o relátorio de ananmese do aprendente, e pode também anexar um arquivo de até 20mb para manter a anamnese
 - Plano de ação do paciente
 - Agenda, aonde você pode ver os dias agendados, e após clicar no dia, consegue clicar para agendar, aonde é mandado para seção de agenda daquele dia selecionado
