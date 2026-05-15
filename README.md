@@ -6,7 +6,8 @@ tendo seções que se organizam por prioridade
 
 ## A tela principal "aprendentes"
  aonde pode-se criar um card do paciente, aonde recebe as informações,foto do aprendente, nome, idade, e-mail, nome e número do responsável(guardian), gênero, Status(ativo ou inativo), ínicio e fim das sessões, número de visitas, valor por sessão e/ou valor geral (para planos e coisas do tipo)
-<img width="977" height="993" alt="Screenshot_5" src="https://github.com/user-attachments/assets/3f7560f1-d484-46df-9b92-e7c56312fae0" />
+<img width="938" height="482" alt="Screenshot_3" src="https://github.com/user-attachments/assets/3a66e3c2-755c-4910-9650-8b02a3c09221" />
+
 
   **tabs da seção de aprendentes**
 - Resumo
