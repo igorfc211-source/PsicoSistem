@@ -6,6 +6,16 @@ tendo seções que se organizam por prioridade
 
 ### *Sistema em andamento, sujeito a correção de bugs e adições(já planejadas)*
 
+## Tela de criação da conta
+<img width="1876" height="1004" alt="Screenshot_1" src="https://github.com/user-attachments/assets/807862cd-9fb4-459f-8fb7-1286d2d8b845" />
+>>
+<img width="1859" height="957" alt="Screenshot_2" src="https://github.com/user-attachments/assets/d0451dc7-9cdb-4a4f-9f28-4caa2863283f" />
+
+## tela de login
+<img width="1738" height="512" alt="Screenshot_16" src="https://github.com/user-attachments/assets/be3edadc-db85-4ae7-b88a-3f83086984cd" />
+
+
+
 ## A tela principal "aprendentes"
  aonde pode-se criar um card do paciente, aonde recebe as informações,foto do aprendente, nome, idade, e-mail, nome e número do responsável(guardian), gênero, Status(ativo ou inativo), ínicio e fim das sessões, número de visitas, valor por sessão e/ou valor geral (para planos e coisas do tipo)
  
