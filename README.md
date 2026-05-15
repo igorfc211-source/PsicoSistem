@@ -5,6 +5,7 @@ Sistema SaaS para clinicas de psicopedagogia, com backend em Go e frontend em Sv
 tendo seções que se organizam por prioridade
 
 ### *Sistema em andamento, sujeito a correção de bugs e adições(já planejadas)*
+### *possíveis atualizações estaram na branch "funcionalities"*
 
 ## Tela de criação da conta
 <img width="1876" height="1004" alt="Screenshot_1" src="https://github.com/user-attachments/assets/807862cd-9fb4-459f-8fb7-1286d2d8b845" />
