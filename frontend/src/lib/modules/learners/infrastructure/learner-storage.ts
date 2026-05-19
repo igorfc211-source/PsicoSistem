@@ -3,6 +3,10 @@ import type { Learner, LearnerGuardian, Visit } from '../domain/types';
 
 export const LEARNERS_STORAGE_KEY = 'psicosistem.learners';
 
+function getScopedStorageKey(scope?: string | null) {
+	return scope ? `${LEARNERS_STORAGE_KEY}.${scope}` : LEARNERS_STORAGE_KEY;
+}
+
 // Corrige dados antigos do localStorage para o contrato atual do dominio.
 function normalizeLearner(learner: Partial<Learner>): Learner {
 	const now = new Date().toISOString();
@@ -109,20 +113,21 @@ function normalizeVisit(visit: Partial<Visit>): Visit {
 }
 
 // Carrega aprendentes persistidos localmente e limpa o cache se o JSON estiver invalido.
-export function loadLearners() {
-	const rawLearners = localStorage.getItem(LEARNERS_STORAGE_KEY);
+export function loadLearners(scope?: string | null) {
+	const storageKey = getScopedStorageKey(scope);
+	const rawLearners = localStorage.getItem(storageKey);
 	if (!rawLearners) return [];
 
 	try {
 		const parsedLearners = JSON.parse(rawLearners) as Array<Partial<Learner>>;
 		return parsedLearners.map(normalizeLearner).filter((learner) => learner.id);
 	} catch {
-		localStorage.removeItem(LEARNERS_STORAGE_KEY);
+		localStorage.removeItem(storageKey);
 		return [];
 	}
 }
 
 // Persiste o snapshot completo para manter a interface responsiva sem backend de prontuario ainda.
-export function saveLearners(learners: Learner[]) {
-	localStorage.setItem(LEARNERS_STORAGE_KEY, JSON.stringify(learners));
+export function saveLearners(learners: Learner[], scope?: string | null) {
+	localStorage.setItem(getScopedStorageKey(scope), JSON.stringify(learners));
 }

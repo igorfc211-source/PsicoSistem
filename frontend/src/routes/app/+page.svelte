@@ -5,7 +5,9 @@
 	import { fly } from 'svelte/transition';
 	import { AppSidebar, AppTopbar, WorkspaceBanner } from '$lib/modules/clinic-shell/components';
 	import '$lib/modules/clinic-shell/styles/clinic-app.css';
-	import type { Banner, NavSection } from '$lib/modules/clinic-shell/types';
+	import { NAV_ITEMS, type Banner, type NavSection } from '$lib/modules/clinic-shell/types';
+	import SettingsWorkspace from '$lib/modules/governance/components/SettingsWorkspace.svelte';
+	import type { TeamUser } from '$lib/modules/governance/infrastructure/team-api';
 	import {
 		AgendaWorkspace,
 		CommunicationsWorkspace,
@@ -155,6 +157,8 @@
 	const tenantName = $derived(session?.payload.tenant?.name ?? 'PsicoClinica');
 	const userName = $derived(session?.payload.user?.name ?? 'Usuario');
 	const guardianOptions = $derived(buildGuardianOptionsFromLearners(learners, communicationFamilies));
+	const tenantStorageScope = $derived(session?.payload.tenant?.id ?? session?.payload.user?.tenant_id ?? null);
+	const visibleNavItems = $derived(NAV_ITEMS.filter((item) => canAccessNavSection(item.value)));
 
 	onMount(() => {
 		if (!browser) return;
@@ -170,20 +174,49 @@
 		}
 
 		session = storedSession;
-		learners = loadLearners();
-		hiddenCommunicationSourceKeys = loadHiddenCommunicationSourceKeys();
+		const storageScope = getTenantStorageScope(storedSession);
+		learners = loadLearners(storageScope);
+		hiddenCommunicationSourceKeys = loadHiddenCommunicationSourceKeys(storageScope);
 		communicationFamilies = syncCommunicationFamiliesWithLearners(
-			loadCommunicationFamilies(),
+			loadCommunicationFamilies(storageScope),
 			learners,
 			hiddenCommunicationSourceKeys
 		);
-		agendaEvents = loadAgendaEvents();
+		agendaEvents = loadAgendaEvents(storageScope);
 		selectedLearnerId = learners[0]?.id ?? null;
 		selectedFamilyId = null;
-		saveCommunicationFamilies(communicationFamilies);
-		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
+		saveCommunicationFamilies(communicationFamilies, storageScope);
+		theme = localStorage.getItem(getTenantStorageKey('psicosistem.theme', storageScope)) === 'dark' ? 'dark' : 'light';
+		if (!canAccessNavSection(activeSection)) {
+			activeSection = visibleNavItems[0]?.value ?? 'configuracoes';
+		}
 
 		await syncLearnersFromBackend(storedSession);
+	}
+
+	function getTenantStorageScope(storedSession = session) {
+		return storedSession?.payload.tenant?.id ?? storedSession?.payload.user?.tenant_id ?? null;
+	}
+
+	function getTenantStorageKey(key: string, scope = tenantStorageScope) {
+		return scope ? `${key}.${scope}` : key;
+	}
+
+	function hasPermission(scope: keyof NonNullable<StoredSession['payload']['user']>['permissions']) {
+		const value = session?.payload.user?.permissions[scope];
+		return value === 'own' || value === 'all';
+	}
+
+	function canAccessNavSection(section: NavSection) {
+		if (!session?.payload.user) return true;
+
+		if (section === 'aprendentes') return hasPermission('patients') || hasPermission('finance');
+		if (section === 'agenda') return hasPermission('calendar');
+		if (section === 'financeiro') return hasPermission('finance');
+		if (section === 'comunicacoes') return hasPermission('patients') || hasPermission('finance');
+		if (section === 'configuracoes') return session.payload.user.permissions.user_directory === 'all';
+
+		return true;
 	}
 
 	async function syncLearnersFromBackend(storedSession: StoredSession) {
@@ -200,10 +233,10 @@
 				selectedLearnerId = nextLearners[0]?.id ?? null;
 			}
 		} catch {
-			banner = {
-				tone: 'info',
-				text: 'Nao foi possivel sincronizar valores financeiros do backend; mantendo os dados locais.'
-			};
+			// banner = {
+			// 	tone: 'info',
+			// 	text: 'Nao foi possivel sincronizar valores financeiros do backend; mantendo os dados locais.'
+			// };
 		}
 	}
 
@@ -221,26 +254,26 @@
 	function toggleTheme() {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		if (browser) {
-			localStorage.setItem('psicosistem.theme', theme);
+			localStorage.setItem(getTenantStorageKey('psicosistem.theme'), theme);
 		}
 	}
 
 	// Persiste o snapshot de aprendentes sempre que uma operacao clinica muda o estado.
 	function persistLearners(nextLearners = learners) {
 		if (!browser) return;
-		saveLearners(nextLearners);
+		saveLearners(nextLearners, tenantStorageScope);
 	}
 
 	// Persiste eventos livres, que vivem fora do prontuario de um aprendente especifico.
 	function persistAgendaEvents(nextEvents = agendaEvents) {
 		if (!browser) return;
-		saveAgendaEvents(nextEvents);
+		saveAgendaEvents(nextEvents, tenantStorageScope);
 	}
 
 	// Persiste os cards de comunicacao, que funcionam como um mini-CRM de familias.
 	function persistCommunicationFamilies(nextFamilies = communicationFamilies) {
 		if (!browser) return;
-		saveCommunicationFamilies(nextFamilies);
+		saveCommunicationFamilies(nextFamilies, tenantStorageScope);
 	}
 
 	function setCommunicationFamilies(
@@ -487,10 +520,10 @@
 		persistLearners(nextLearners);
 		syncFamiliesForLearners(nextLearners);
 
-		banner = {
-			tone: 'success',
-			text: 'Aprendente adicionado ao painel.'
-		};
+		// banner = {
+		// 	tone: 'success',
+		// 	text: 'Aprendente adicionado ao painel.'
+		// };
 		return true;
 	}
 
@@ -531,6 +564,13 @@
 			tone: 'success',
 			text: 'Aprendente excluido com sucesso.'
 		};
+	}
+
+	function confirmDeactivateTeamUser(user: TeamUser) {
+		return confirmDeletion(
+			`Desativar a conta de "${user.name}"? Essa pessoa nao conseguira mais acessar esta clinica.`,
+			'Desativar conta'
+		);
 	}
 
 	function getFilledGuardianInputs(guardians: LearnerGuardianInput[]) {
@@ -592,7 +632,7 @@
 			if (sourceKey && hiddenCommunicationSourceKeys.includes(sourceKey)) {
 				nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== sourceKey);
 				hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
-				saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+				saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
 			}
 			setCommunicationFamilies([family, ...communicationFamilies], learners, nextHiddenSourceKeys);
 		}
@@ -651,7 +691,7 @@
 		if (createdSourceKey && hiddenCommunicationSourceKeys.includes(createdSourceKey)) {
 			nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== createdSourceKey);
 			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
-			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
 		}
 
 		selectedFamilyId = createdFamily.id;
@@ -709,7 +749,7 @@
 				new Set([...hiddenCommunicationSourceKeys, ...removedSourceKeys])
 			);
 			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
-			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys);
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
 		}
 
 		setCommunicationFamilies(nextFamilies, learners, nextHiddenSourceKeys);
@@ -893,6 +933,14 @@
 
 	// Mapeia secoes do menu lateral para a aba interna equivalente do prontuario.
 	function selectSection(section: NavSection) {
+		if (!canAccessNavSection(section)) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para acessar esta secao.'
+			};
+			return;
+		}
+
 		activeSection = section;
 		showAddForm = false;
 		isSidebarOpen = false;
@@ -906,6 +954,14 @@
 
 	// Entrada do dropdown de perfil para conduzir o usuario ate configuracoes futuras.
 	function editProfile() {
+		if (!canAccessNavSection('configuracoes')) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para gerenciar configuracoes da clinica.'
+			};
+			return;
+		}
+
 		activeSection = 'configuracoes';
 		showAddForm = false;
 		banner = {
@@ -916,6 +972,14 @@
 
 	// Abre a area de configuracoes a partir do menu de perfil.
 	function openSettings() {
+		if (!canAccessNavSection('configuracoes')) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para gerenciar configuracoes da clinica.'
+			};
+			return;
+		}
+
 		activeSection = 'configuracoes';
 		showAddForm = false;
 		banner = {
@@ -1340,6 +1404,7 @@
 			<AppSidebar
 				{tenantName}
 				{activeSection}
+				navItems={visibleNavItems}
 				isOpen={isSidebarOpen}
 				onSelectSection={selectSection}
 				onClose={closeSidebar}
@@ -1364,6 +1429,8 @@
 					searchPlaceholder={
 						activeSection === 'comunicacoes'
 							? 'Buscar familia, responsavel ou aprendente...'
+							: activeSection === 'configuracoes'
+								? 'Buscar configuracoes e contas...'
 							: 'Buscar aprendente ou agendamento...'
 					}
 					onToggleSidebar={toggleSidebar}
@@ -1417,6 +1484,8 @@
 								onSelectFamily={selectFamily}
 								onCloseFamily={closeFamily}
 							/>
+						{:else if activeSection === 'configuracoes'}
+							<SettingsWorkspace {session} onConfirmDeactivate={confirmDeactivateTeamUser} />
 						{:else}
 							<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
 							<LearnersWorkspace

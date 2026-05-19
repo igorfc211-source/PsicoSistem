@@ -1,15 +1,17 @@
 <script lang="ts">
-	import { NAV_ITEMS, type NavSection } from '../../types';
+	import { NAV_ITEMS, type NavItem, type NavSection } from '../../types';
 
 	let {
 		tenantName,
 		activeSection,
+		navItems = NAV_ITEMS,
 		isOpen,
 		onSelectSection,
 		onClose
 	} = $props<{
 		tenantName: string;
 		activeSection: NavSection;
+		navItems?: NavItem[];
 		isOpen: boolean;
 		onSelectSection: (section: NavSection) => void;
 		onClose: () => void;
@@ -28,7 +30,7 @@
 
 	<!-- Navegacao principal: controla qual workspace aparece no painel. -->
 	<nav class="side-nav" aria-label="Navegacao principal">
-		{#each NAV_ITEMS as item}
+		{#each navItems as item}
 			<button
 				type="button"
 				class:active={activeSection === item.value}

@@ -313,15 +313,18 @@ button {
 
 .workspace-banner.info {
 	background: #eef5ff;
+	max-height: 50px;
 }
 
 .workspace-banner.success {
 	background: #eaf8ef;
+	max-width: "4%";
+	max-height: 50px;
 }
 
 .workspace-banner.error {
 	background: #fff0ed;
-}
+	max-height: 50px;}
 
 .learners-workspace {
 	display: grid;
@@ -1438,6 +1441,154 @@ textarea:focus {
 	font-size: 0.82rem;
 }
 
+.settings-workspace {
+	display: grid;
+	align-content: start;
+	gap: 22px;
+	padding: 34px 30px;
+	overflow: auto;
+}
+
+.settings-head,
+.governance-actions,
+.governance-user-card header,
+.governance-user-card footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.settings-head p,
+.governance-actions span,
+.governance-metrics span,
+.governance-user-card header span,
+.governance-user-controls label > span,
+.permission-matrix label > span,
+.governance-empty {
+	color: #6b7383;
+}
+
+.governance-metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.governance-metrics div,
+.governance-form,
+.governance-user-card,
+.governance-empty {
+	border: 1px solid #e7eaf0;
+	border-radius: 8px;
+	background: #fff;
+	padding: 18px;
+}
+
+.governance-metrics div {
+	display: grid;
+	gap: 8px;
+	border-top: 4px solid #7047f5;
+}
+
+.governance-metrics strong {
+	color: #1e2430;
+	font-size: 1.55rem;
+}
+
+.governance-feedback {
+	border-radius: 8px;
+	font-weight: 850;
+	padding: 12px 14px;
+}
+
+.governance-feedback.success {
+	background: #eaf8ef;
+	color: #247a52;
+}
+
+.governance-feedback.error {
+	background: #fff0ed;
+	color: #a64b3b;
+}
+
+.governance-feedback.info {
+	background: #eef5ff;
+	color: #3f64cc;
+}
+
+.governance-form {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.governance-form-actions {
+	display: flex;
+	align-items: end;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.governance-user-list {
+	display: grid;
+	gap: 14px;
+}
+
+.governance-user-card {
+	display: grid;
+	gap: 16px;
+	box-shadow: 0 16px 36px rgba(30, 36, 48, 0.05);
+}
+
+.governance-user-card header > div:first-child,
+.governance-user-controls label,
+.permission-matrix label {
+	display: grid;
+	gap: 6px;
+}
+
+.governance-badges {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.governance-badges span {
+	border-radius: 999px;
+	background: #f0eaff;
+	color: #7047f5;
+	font-weight: 900;
+	padding: 7px 10px;
+}
+
+.governance-badges span.active {
+	background: #eaf8ef;
+	color: #247a52;
+}
+
+.governance-badges span.inactive {
+	background: #f0f1f4;
+	color: #6b7383;
+}
+
+.governance-user-controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(180px, 1fr)) auto;
+	align-items: end;
+	gap: 12px;
+}
+
+.permission-matrix {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(150px, 1fr));
+	gap: 12px;
+	border-top: 1px solid #edf0f5;
+	padding-top: 16px;
+}
+
 .finance-workspace {
 	display: grid;
 	align-content: start;
@@ -2203,6 +2354,10 @@ textarea:focus {
 	.clinic-shell.dark-mode .photo-field,
 	.clinic-shell.dark-mode .guardian-form-section,
 	.clinic-shell.dark-mode .pending-list button,
+	.clinic-shell.dark-mode .governance-metrics div,
+	.clinic-shell.dark-mode .governance-form,
+	.clinic-shell.dark-mode .governance-user-card,
+	.clinic-shell.dark-mode .governance-empty,
 	.clinic-shell.dark-mode .finance-period-pill,
 	.clinic-shell.dark-mode .finance-kpi,
 	.clinic-shell.dark-mode .finance-panel,
@@ -2274,6 +2429,13 @@ textarea:focus {
 .clinic-shell.dark-mode .photo-field small,
 	.clinic-shell.dark-mode .pending-list span,
 	.clinic-shell.dark-mode .empty-state,
+	.clinic-shell.dark-mode .settings-head p,
+	.clinic-shell.dark-mode .governance-actions span,
+	.clinic-shell.dark-mode .governance-metrics span,
+	.clinic-shell.dark-mode .governance-user-card header span,
+	.clinic-shell.dark-mode .governance-user-controls label > span,
+	.clinic-shell.dark-mode .permission-matrix label > span,
+	.clinic-shell.dark-mode .governance-empty,
 	.clinic-shell.dark-mode .finance-head p,
 	.clinic-shell.dark-mode .finance-period-pill span,
 	.clinic-shell.dark-mode .finance-kpi span,
@@ -2349,6 +2511,8 @@ textarea:focus {
 .clinic-shell.dark-mode .family-summary-metrics strong,
 	.clinic-shell.dark-mode .family-summary-line strong,
 	.clinic-shell.dark-mode .family-card-toolbar strong,
+	.clinic-shell.dark-mode .governance-metrics strong,
+	.clinic-shell.dark-mode .governance-user-card strong,
 	.clinic-shell.dark-mode .finance-period-pill strong,
 	.clinic-shell.dark-mode .finance-kpi strong,
 	.clinic-shell.dark-mode .finance-status-card strong,
@@ -2378,6 +2542,21 @@ textarea:focus {
 .clinic-shell.dark-mode .finance-mini-status.missed {
 	background: #382b13;
 	color: #ffd98c;
+}
+
+.clinic-shell.dark-mode .governance-badges span {
+	background: #2b2154;
+	color: #c8b8ff;
+}
+
+.clinic-shell.dark-mode .governance-badges span.active {
+	background: #173524;
+	color: #a8ecc7;
+}
+
+.clinic-shell.dark-mode .governance-badges span.inactive {
+	background: #273149;
+	color: #aab4ca;
 }
 
 .clinic-shell.dark-mode .profile-status-field select.active {
@@ -2480,6 +2659,7 @@ textarea:focus {
 	.learners-column,
 	.detail-column,
 	.agenda-workspace,
+	.settings-workspace,
 	.finance-workspace {
 		padding: 20px;
 	}
@@ -2489,6 +2669,10 @@ textarea:focus {
 		.guardian-form-grid,
 		.family-creator-flow,
 		.crm-metrics,
+		.governance-metrics,
+		.governance-form,
+		.governance-user-controls,
+		.permission-matrix,
 		.finance-kpi-grid,
 		.finance-status-grid,
 		.family-card-grid,
@@ -2498,6 +2682,10 @@ textarea:focus {
 	}
 
 	.finance-head,
+	.settings-head,
+	.governance-actions,
+	.governance-user-card header,
+	.governance-user-card footer,
 	.finance-panel header,
 	.finance-bar-row,
 	.finance-learner-row,
@@ -2626,6 +2814,7 @@ textarea:focus {
 
 	.learners-workspace,
 	.agenda-workspace,
+	.settings-workspace,
 	.finance-workspace,
 	.communications-workspace {
 		grid-template-columns: 1fr;

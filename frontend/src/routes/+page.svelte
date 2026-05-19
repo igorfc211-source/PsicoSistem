@@ -697,7 +697,7 @@
 	}
 
 	.primary-button {
-		background: #9b5138;
+		background: rgba(85, 37, 243, 0.795);
 		color: white;
 		box-shadow: 0 14px 30px rgba(155, 81, 56, 0.18);
 	}

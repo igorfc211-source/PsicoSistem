@@ -35,7 +35,7 @@
 		return Math.max(0, Math.round(amount * 100));
 	}
 
-	// Reduz a foto antes de salvar no localStorage, evitando imagens pesadas no cadastro.
+	// Reduz a foto antes de salvar no localStorage, evitando imagens pesadas no cadastro
 	function resizeLearnerPhoto(file: File) {
 		return new Promise<string>((resolve, reject) => {
 			const reader = new FileReader();

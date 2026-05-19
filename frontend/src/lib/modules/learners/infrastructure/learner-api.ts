@@ -32,7 +32,7 @@ type ApiResponse<T> = {
 export async function fetchBackendLearners(token: string) {
 	if (!token) return [];
 
-	const response = await fetch('/api/learners?per_page=100', {
+	const response = await fetch('/api/learners?per_page=1', {
 		headers: {
 			authorization: `Bearer ${token}`
 		}

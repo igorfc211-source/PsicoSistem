@@ -21,38 +21,50 @@ const CONTACT_TYPES = new Set<ContactChannelType>([
 ]);
 const STAGES = new Set<CommunicationStage>(COMMUNICATION_STAGES.map((stage) => stage.value));
 
-export function loadCommunicationFamilies() {
-	const rawFamilies = localStorage.getItem(COMMUNICATION_FAMILIES_STORAGE_KEY);
+function getScopedStorageKey(key: string, scope?: string | null) {
+	return scope ? `${key}.${scope}` : key;
+}
+
+export function loadCommunicationFamilies(scope?: string | null) {
+	const storageKey = getScopedStorageKey(COMMUNICATION_FAMILIES_STORAGE_KEY, scope);
+	const rawFamilies = localStorage.getItem(storageKey);
 	if (!rawFamilies) return [];
 
 	try {
 		const parsedFamilies = JSON.parse(rawFamilies) as Array<Partial<CommunicationFamily>>;
 		return parsedFamilies.map(normalizeFamily).filter((family) => family.id && family.familyName);
 	} catch {
-		localStorage.removeItem(COMMUNICATION_FAMILIES_STORAGE_KEY);
+		localStorage.removeItem(storageKey);
 		return [];
 	}
 }
 
-export function saveCommunicationFamilies(families: CommunicationFamily[]) {
-	localStorage.setItem(COMMUNICATION_FAMILIES_STORAGE_KEY, JSON.stringify(families));
+export function saveCommunicationFamilies(families: CommunicationFamily[], scope?: string | null) {
+	localStorage.setItem(
+		getScopedStorageKey(COMMUNICATION_FAMILIES_STORAGE_KEY, scope),
+		JSON.stringify(families)
+	);
 }
 
-export function loadHiddenCommunicationSourceKeys() {
-	const rawKeys = localStorage.getItem(HIDDEN_COMMUNICATION_SOURCE_KEYS_STORAGE_KEY);
+export function loadHiddenCommunicationSourceKeys(scope?: string | null) {
+	const storageKey = getScopedStorageKey(HIDDEN_COMMUNICATION_SOURCE_KEYS_STORAGE_KEY, scope);
+	const rawKeys = localStorage.getItem(storageKey);
 	if (!rawKeys) return [];
 
 	try {
 		const parsedKeys = JSON.parse(rawKeys) as string[];
 		return normalizeIds(parsedKeys);
 	} catch {
-		localStorage.removeItem(HIDDEN_COMMUNICATION_SOURCE_KEYS_STORAGE_KEY);
+		localStorage.removeItem(storageKey);
 		return [];
 	}
 }
 
-export function saveHiddenCommunicationSourceKeys(keys: string[]) {
-	localStorage.setItem(HIDDEN_COMMUNICATION_SOURCE_KEYS_STORAGE_KEY, JSON.stringify(normalizeIds(keys)));
+export function saveHiddenCommunicationSourceKeys(keys: string[], scope?: string | null) {
+	localStorage.setItem(
+		getScopedStorageKey(HIDDEN_COMMUNICATION_SOURCE_KEYS_STORAGE_KEY, scope),
+		JSON.stringify(normalizeIds(keys))
+	);
 }
 
 function normalizeFamily(family: Partial<CommunicationFamily>): CommunicationFamily {
