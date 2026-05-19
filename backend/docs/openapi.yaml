@@ -258,6 +258,217 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PermissionSuccess'
+  /v1/learners:
+    get:
+      summary: Lista aprendentes da clínica
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista paginada de aprendentes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerListSuccess'
+    post:
+      summary: Cria aprendente com valor de sessão
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLearnerInput'
+      responses:
+        '201':
+          description: Aprendente criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerSuccess'
+  /v1/learners/{id}:
+    get:
+      summary: Retorna um aprendente da clínica
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Aprendente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerSuccess'
+    patch:
+      summary: Atualiza aprendente e valor de sessão
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLearnerInput'
+      responses:
+        '200':
+          description: Aprendente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LearnerSuccess'
+    delete:
+      summary: Desativa aprendente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Aprendente desativado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /v1/guardians:
+    get:
+      summary: Lista responsáveis da clínica
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista paginada de responsáveis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianListSuccess'
+    post:
+      summary: Cria responsável
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGuardianInput'
+      responses:
+        '201':
+          description: Responsável criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianSuccess'
+  /v1/guardians/{id}:
+    get:
+      summary: Retorna um responsável da clínica
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Responsável encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianSuccess'
+    patch:
+      summary: Atualiza responsável
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGuardianInput'
+      responses:
+        '200':
+          description: Responsável atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianSuccess'
+    delete:
+      summary: Remove responsável sem aprendentes vinculados
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Responsável removido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
 components:
   securitySchemes:
     bearerAuth:
@@ -344,6 +555,71 @@ components:
         status:
           type: string
           enum: [active, inactive]
+    CreateLearnerInput:
+      type: object
+      required: [name, guardian_ids]
+      properties:
+        name:
+          type: string
+        photo_url:
+          type: string
+        gender:
+          type: string
+        guardian:
+          type: string
+        age:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        start_date:
+          type: string
+          example: '2026-05-05'
+        end_date:
+          type: string
+          example: '2026-06-05'
+        visit_count:
+          type: integer
+        session_price_cents:
+          type: integer
+          format: int64
+          description: Valor padrao por sessao do aprendente, em centavos.
+        general_value_cents:
+          type: integer
+          format: int64
+          description: Valor geral/contratado do aprendente, em centavos.
+        guardian_ids:
+          type: array
+          minItems: 1
+          maxItems: 2
+          description: IDs dos responsáveis vinculados ao aprendente.
+          items:
+            type: string
+            format: uuid
+    UpdateLearnerInput:
+      allOf:
+        - $ref: '#/components/schemas/CreateLearnerInput'
+    CreateGuardianInput:
+      type: object
+      required: [name, phone, address]
+      properties:
+        name:
+          type: string
+        relationship:
+          type: string
+          description: Parentesco do responsável, como mãe, pai, avó ou tio.
+        phone:
+          type: string
+          description: Número de telefone com 10 ou 11 dígitos.
+        address:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+          description: CPF opcional do responsável.
+    UpdateGuardianInput:
+      allOf:
+        - $ref: '#/components/schemas/CreateGuardianInput'
     AccountPermissions:
       type: object
       properties:
@@ -419,6 +695,87 @@ components:
           type: string
           format: date-time
           nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Learner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        photo_url:
+          type: string
+        gender:
+          type: string
+        guardian:
+          type: string
+        age:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        start_date:
+          type: string
+        end_date:
+          type: string
+        visit_count:
+          type: integer
+        session_price_cents:
+          type: integer
+          format: int64
+          description: Valor padrao por sessao do aprendente, em centavos.
+        general_value_cents:
+          type: integer
+          format: int64
+          description: Valor geral/contratado do aprendente, em centavos.
+        guardian_ids:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Guardian:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        relationship:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        cpf:
+          type: string
+          nullable: true
+        learner_ids:
+          type: array
+          description: Aprendentes vinculados a este responsável.
+          items:
+            type: string
+            format: uuid
         created_at:
           type: string
           format: date-time
@@ -539,6 +896,72 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/User'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+        error:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    LearnerSuccess:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Learner'
+        meta:
+          nullable: true
+        error:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    LearnerListSuccess:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Learner'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            per_page:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+        error:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    GuardianSuccess:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Guardian'
+        meta:
+          nullable: true
+        error:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/ApiError'
+    GuardianListSuccess:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Guardian'
         meta:
           type: object
           properties:
