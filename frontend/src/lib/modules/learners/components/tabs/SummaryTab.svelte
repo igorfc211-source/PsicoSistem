@@ -18,22 +18,38 @@
 			)
 			.slice(0, 6)
 	);
+	const totalSessions = $derived(learner.visits.length);
+
+const completedSessions = $derived(
+	learner.visits.filter((visit) => visit.status === 'completed').length
+);
+
+const missedSessions = $derived(
+	learner.visits.filter((visit) => visit.status === 'missed').length
+);
+
+const scheduledSessions = $derived(
+	learner.visits.filter((visit) => visit.status === 'scheduled').length
+);
+
 
 	function getVisitStatusLabel(status: Learner['visits'][number]['status']) {
 		if (status === 'completed') return 'Realizada';
 		if (status === 'missed') return 'Falta';
+		if (status === 'scheduled') return 'Agendado';
 		return 'Agendada';
 	}
 </script>
 
 <section class="summary-grid">
+
 	<!-- Card de proxima sessao: atalho direto para a agenda do aprendente. -->
 	<div class="next-session card">
 		<div>
 			<strong>Proxima sessao</strong>
+				
 			{#if nextVisit}
 				<p>{formatLongDate(nextVisit.date)}</p>
-				<span>{nextVisit.status}</span>
 			{:else}
 				<p>Nenhuma sessao criada</p>
 			{/if}
@@ -42,19 +58,77 @@
 	</div>
 
 	<!-- Indicador de frequencia calculado a partir das visitas planejadas/realizadas. -->
-	<div class="card stat-card">
-		<strong>Frequencia</strong>
-		<div>{getAttendanceRate(learner)}%</div>
-		<p>{learner.visits.length} sessoes planejadas</p>
+
+<div class="card stat-card flex flex-col gap-4 overflow-hidden rounded-2xl p-4">
+	<div class="flex items-start justify-between gap-4">
+		<div class="flex flex-col">
+			<strong class="text-xs font-medium text-zinc-500">
+				Total de sessões
+			</strong>
+
+			<p class="text-3xl font-bold leading-none text-zinc-900">
+				{totalSessions}
+			</p>
+		</div>
+
+		<div class="flex flex-col items-end">
+			<h2 class="text-xs font-medium text-zinc-500">
+				Frequência
+			</h2>
+
+			<div class="text-2xl font-bold leading-none text-zinc-900">
+				{getAttendanceRate(learner)}%
+			</div>
+		</div>
 	</div>
 
-	<!-- Indicador de documentos gerais anexados ao prontuario. -->
-	<div class="card stat-card">
-		<strong>Documentos</strong>
-		<div>{learner.documents.length}</div>
-		<p>Arquivos armazenados</p>
+	<div class="grid grid-cols-3 gap-2">
+		<span class="flex flex-col rounded-xl bg-zinc-100 px-3 py-2">
+			<label class="text-[11px] text-zinc-500">
+				Realizadas
+			</label>
+
+			<strong class="text-base font-semibold text-zinc-900">
+				{completedSessions}
+			</strong>
+		</span>
+
+		<span class="flex flex-col rounded-xl bg-zinc-100 px-3 py-2">
+			<label class="text-[11px] text-zinc-500">
+				Agendadas
+			</label>
+
+			<strong class="text-base font-semibold text-zinc-900">
+				{scheduledSessions}
+			</strong>
+		</span>
+
+		<span class="flex flex-col rounded-xl bg-zinc-100 px-3 py-2">
+			<label class="text-[11px] text-zinc-500">
+				Faltas
+			</label>
+
+			<strong class="text-base font-semibold text-zinc-900">
+				{missedSessions}
+			</strong>
+		</span>
+	</div>
+</div>
+
+<!-- Indicador de documentos gerais anexados ao prontuario. -->
+<div class="card stat-card flex flex-col rounded-2xl p-4">
+	<strong class="text-xs font-medium text-zinc-500">
+		Documentos
+	</strong>
+
+	<div class="text-3xl font-bold leading-none text-zinc-900">
+		{learner.documents.length}
 	</div>
 
+	<p class="text-sm text-zinc-500">
+		Arquivos armazenados
+	</p>
+</div>
 	<!-- Reunioes/atendimentos do aprendente para enxergar a agenda direto no resumo. -->
 	<div class="card learner-meetings">
 		<div class="summary-card-head">
@@ -89,3 +163,36 @@
 		{/if}
 	</div>
 </section>
+
+<style>
+	.session-stats {
+	display: flex;
+	gap: 1rem;
+	margin-top: 1rem;
+	flex-wrap: wrap;
+}
+
+.session-stats span {
+	display: flex;
+	flex-direction: column;
+	padding: 0.65rem 0.9rem;
+	border-radius: 14px;
+	background: #f8f8fa;
+	min-width: 90px;
+}
+
+.session-stats label {
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: #8a8a96;
+	margin-bottom: 0.2rem;
+	letter-spacing: 0.02em;
+}
+
+.session-stats strong {
+	font-size: 1rem;
+	font-weight: 600;
+	color: #1c1c1e;
+}
+
+</style>
