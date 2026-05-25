@@ -11,6 +11,7 @@
 	} from '$lib/auth';
 
 	type AuthMode = 'login' | 'register';
+	type AuthView = AuthMode | 'forgot';
 	type RegisterStep = 'details' | 'payment';
 	type PlanSlug = 'basico' | 'intermediario' | 'premium';
 	type BannerTone = 'info' | 'success' | 'error';
@@ -61,7 +62,7 @@
 		}
 	];
 
-	let activeMode = $state<AuthMode>('login');
+	let activeMode = $state<AuthView>('login');
 	let registerStep = $state<RegisterStep>('details');
 	let isSubmitting = $state(false);
 	let banner = $state<Banner | null>(null);
@@ -69,6 +70,10 @@
 	let loginForm = $state({
 		email: '',
 		password: ''
+	});
+
+	let forgotPasswordForm = $state({
+		email: ''
 	});
 
 	let registerForm = $state({
@@ -90,7 +95,7 @@
 		}
 	});
 
-	function setMode(mode: AuthMode) {
+	function setMode(mode: AuthView) {
 		activeMode = mode;
 		registerStep = 'details';
 		banner = null;
@@ -151,7 +156,7 @@
 		registerForm.cpf_cnpj = formatCpfCnpj((event.currentTarget as HTMLInputElement).value);
 	}
 
-	function getErrorMessage(result: ApiResponse<AuthPayload> | null) {
+	function getErrorMessage(result: ApiResponse<unknown> | null) {
 		return result?.error?.message ?? 'Nao foi possivel concluir a autenticacao.';
 	}
 
@@ -232,6 +237,46 @@
 		}
 	}
 
+	async function submitForgotPassword() {
+		isSubmitting = true;
+		banner = {
+			tone: 'info',
+			title: 'Enviando recuperacao',
+			message: 'Se a conta existir, enviaremos um link seguro para o e-mail informado.'
+		};
+
+		try {
+			const response = await fetch('/api/auth/forgot-password', {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json'
+				},
+				body: JSON.stringify(forgotPasswordForm)
+			});
+
+			const result = (await response.json()) as ApiResponse<{ message: string }>;
+			if (!response.ok || result.error) {
+				throw new Error(getErrorMessage(result));
+			}
+
+			banner = {
+				tone: 'success',
+				title: 'Confira seu e-mail',
+				message:
+					result.data?.message ??
+					'Se o e-mail informado estiver cadastrado, enviaremos um link de recuperacao.'
+			};
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				title: 'Nao foi possivel enviar',
+				message: error instanceof Error ? error.message : 'Erro inesperado ao falar com a API.'
+			};
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
 	function handleLoginSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		void submitAuth('login');
@@ -240,6 +285,11 @@
 	function handleRegisterSubmit(event: SubmitEvent) {
 		event.preventDefault();
 		void submitAuth('register');
+	}
+
+	function handleForgotPasswordSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		void submitForgotPassword();
 	}
 </script>
 
@@ -252,7 +302,13 @@
 		<div class="panel-header">
 			<div>
 				<p class="eyebrow">Acesso da clinica</p>
-				<h2>{activeMode === 'login' ? 'Entrar na plataforma' : 'Criar primeira conta'}</h2>
+				<h2>
+					{activeMode === 'forgot'
+						? 'Recuperar senha'
+						: activeMode === 'login'
+							? 'Entrar na plataforma'
+							: 'Criar primeira conta'}
+				</h2>
 			</div>
 
 			<div class="mode-switch" aria-label="Alternar formulario">
@@ -311,6 +367,46 @@
 				<button class="primary-button mt-12" type="submit" disabled={isSubmitting}>
 					{isSubmitting ? 'Entrando...' : 'Entrar'}
 				</button>
+
+				<button
+					type="button"
+					class="text-button"
+					onclick={() => {
+						forgotPasswordForm.email = loginForm.email;
+						setMode('forgot');
+					}}
+					disabled={isSubmitting}
+				>
+					Esqueci minha senha
+				</button>
+			</form>
+		{:else if activeMode === 'forgot'}
+			<form class="auth-form" onsubmit={handleForgotPasswordSubmit}>
+				<p>
+					Informe o e-mail da sua conta. Se ele estiver cadastrado, enviaremos um link para criar
+					uma nova senha.
+				</p>
+
+				<label>
+					<span>Email</span>
+					<input
+						type="email"
+						bind:value={forgotPasswordForm.email}
+						placeholder="responsavel@clinica.com"
+						autocomplete="email"
+						required
+						disabled={isSubmitting}
+					/>
+				</label>
+
+				<div class="action-row">
+					<button type="button" class="ghost-button" onclick={() => setMode('login')} disabled={isSubmitting}>
+						Voltar
+					</button>
+					<button class="primary-button" type="submit" disabled={isSubmitting}>
+						{isSubmitting ? 'Enviando...' : 'Enviar link'}
+					</button>
+				</div>
 			</form>
 		{:else if registerStep === 'details'}
 			<div class="auth-form">
@@ -697,7 +793,7 @@
 	}
 
 	.primary-button {
-		background: #9b5138;
+		background: rgba(85, 37, 243, 0.795);
 		color: white;
 		box-shadow: 0 14px 30px rgba(155, 81, 56, 0.18);
 	}
@@ -705,6 +801,19 @@
 	.ghost-button {
 		background: rgba(29, 103, 112, 0.08);
 		color: #1d6770;
+	}
+
+	.text-button {
+		width: fit-content;
+		justify-self: center;
+		background: transparent;
+		color: #1d6770;
+		font-weight: 800;
+		padding: 0.35rem 0.5rem;
+	}
+
+	.text-button:hover {
+		text-decoration: underline;
 	}
 
 	.plan-options {

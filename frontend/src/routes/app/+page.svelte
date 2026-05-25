@@ -2,44 +2,84 @@
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { AppSidebar, AppTopbar, WorkspaceBanner } from '$lib/modules/clinic-shell/components';
 	import '$lib/modules/clinic-shell/styles/clinic-app.css';
-	import type { Banner, NavSection } from '$lib/modules/clinic-shell/types';
-	import { AgendaWorkspace, LearnersWorkspace } from '$lib/modules/learners/components';
-	import { clearStoredSession, getStoredSession, type StoredSession } from '$lib/auth';
+	import { NAV_ITEMS, type Banner, type NavSection } from '$lib/modules/clinic-shell/types';
+	import SettingsWorkspace from '$lib/modules/governance/components/SettingsWorkspace.svelte';
+	import type { TeamUser } from '$lib/modules/governance/infrastructure/team-api';
+	import {
+		AgendaWorkspace,
+		CommunicationsWorkspace,
+		FinanceWorkspace,
+		LearnersWorkspace
+	} from '$lib/modules/learners/components';
+	import {
+		clearStoredSession,
+		fetchCurrentAccount,
+		getStoredSession,
+		mergeCurrentAccountIntoSession,
+		setStoredSession,
+		type StoredSession
+	} from '$lib/auth';
 	import {
 		PLAN_CATEGORIES,
+		addContactToFamily,
 		addCustomActionPlanField,
+		addResponsibleToFamily,
 		appendAnamneseDocumentsToLearner,
 		appendDocumentsToLearner,
 		buildCalendarDays,
+		createCommunicationFamily,
 		createId,
 		createLearner,
 		createReportEntry,
 		createSessionVisit,
 		deleteDocumentBlob,
+		fetchBackendLearners,
 		filterLearners,
 		getDocumentBlob,
 		getDocumentStorageKey,
+		getLearnerGuardianEntries,
+		isValidEmailAddress,
+		isValidInstagramHandle,
+		isValidPhoneNumber,
+		buildGuardianOptionsFromLearners,
+		loadCommunicationFamilies,
+		loadHiddenCommunicationSourceKeys,
 		loadLearners,
+		mergeBackendLearners,
+		getCommunicationFamilyResponsibleKeys,
+		normalizeResponsibleKey,
 		patchLearnerInList,
 		prepareDocumentBlob,
 		prependReportToLearner,
 		putDocumentBlob,
+		removeContactFromFamily,
 		removeCustomActionPlanField,
 		removeReportFromLearner,
+		removeResponsibleFromFamily,
 		removeVisitFromList,
+		saveCommunicationFamilies,
+		saveHiddenCommunicationSourceKeys,
 		saveLearners,
 		sortVisitsBySchedule,
+		syncCommunicationFamiliesWithLearners,
 		toDateInputValue,
+		updateBackendLearner,
 		updateActionPlanValue,
 		updateCustomActionPlanField,
 		updateVisitInList,
+		type CommunicationFamily,
 		type CoreActionPlanKey,
 		type DetailTab,
 		type Learner,
 		type LearnerDocument,
 		type LearnerFilter,
+		type LearnerGuardianInput,
+		type NewCommunicationContactInput,
+		type NewCommunicationFamilyInput,
+		type NewCommunicationResponsibleInput,
 		type NewLearnerInput,
 		type Visit
 	} from '$lib/learners';
@@ -56,10 +96,21 @@
 	} from '$lib/modules/scheduling';
 	import { formatLongDate, formatMonth } from '$lib/shared/formatters';
 
+	type DeletionConfirmation = {
+		title: string;
+		message: string;
+		cancelLabel: string;
+		confirmLabel: string;
+		resolve: (confirmed: boolean) => void;
+	};
+
 	let session = $state<StoredSession | null>(null);
 	let learners = $state<Learner[]>([]);
+	let communicationFamilies = $state<CommunicationFamily[]>([]);
+	let hiddenCommunicationSourceKeys = $state<string[]>([]);
 	let agendaEvents = $state<AgendaEvent[]>([]);
 	let selectedLearnerId = $state<string | null>(null);
+	let selectedFamilyId = $state<string | null>(null);
 	let activeSection = $state<NavSection>('aprendentes');
 	let learnerFilter = $state<LearnerFilter>('active');
 	let detailTab = $state<DetailTab>('resumo');
@@ -72,6 +123,8 @@
 	let isSidebarOpen = $state(false);
 	let theme = $state<'light' | 'dark'>('light');
 	let banner = $state<Banner | null>(null);
+	let deletionConfirmation = $state<DeletionConfirmation | null>(null);
+	let appLoadVersion = 0;
 
 	const filteredLearners = $derived(filterLearners(learners, searchTerm, learnerFilter));
 	const selectedLearner = $derived(
@@ -109,24 +162,127 @@
 	);
 	const monthLabel = $derived(formatMonth(currentMonth));
 	const currentDateLabel = $derived(formatLongDate(selectedAgendaDate));
-	const tenantName = $derived(session?.payload.tenant?.name ?? 'PsicoClinica');
+	const tenantName = $derived(
+		session?.payload.tenant?.id === session?.payload.user?.tenant_id
+			? (session?.payload.tenant?.name ?? 'PsicoClinica')
+			: 'PsicoClinica'
+	);
 	const userName = $derived(session?.payload.user?.name ?? 'Usuario');
+	const guardianOptions = $derived(buildGuardianOptionsFromLearners(learners, communicationFamilies));
+	const tenantStorageScope = $derived(session?.payload.user?.tenant_id ?? session?.payload.tenant?.id ?? null);
+	const visibleNavItems = $derived(NAV_ITEMS.filter((item) => canAccessNavSection(item.value)));
 
 	onMount(() => {
 		if (!browser) return;
 
+		void initializeApp();
+	});
+
+	async function initializeApp() {
+		const loadVersion = ++appLoadVersion;
 		const storedSession = getStoredSession();
 		if (!storedSession) {
 			void goto('/');
 			return;
 		}
 
-		session = storedSession;
-		learners = loadLearners();
-		agendaEvents = loadAgendaEvents();
+		const refreshedSession = await refreshAccountFromBackend(storedSession, loadVersion);
+		if (!refreshedSession || !isCurrentSessionLoad(loadVersion, refreshedSession.payload.token)) return;
+
+		await syncLearnersFromBackend(refreshedSession, loadVersion);
+	}
+
+	function loadSessionWorkspaceState(nextSession: StoredSession) {
+		session = nextSession;
+		const storageScope = getTenantStorageScope(nextSession);
+		learners = loadLearners(storageScope);
+		hiddenCommunicationSourceKeys = loadHiddenCommunicationSourceKeys(storageScope);
+		communicationFamilies = syncCommunicationFamiliesWithLearners(
+			loadCommunicationFamilies(storageScope),
+			learners,
+			hiddenCommunicationSourceKeys
+		);
+		agendaEvents = loadAgendaEvents(storageScope);
 		selectedLearnerId = learners[0]?.id ?? null;
-		theme = localStorage.getItem('psicosistem.theme') === 'dark' ? 'dark' : 'light';
-	});
+		selectedFamilyId = null;
+		saveCommunicationFamilies(communicationFamilies, storageScope);
+		theme = localStorage.getItem(getTenantStorageKey('psicosistem.theme', storageScope)) === 'dark' ? 'dark' : 'light';
+		if (!canAccessNavSection(activeSection)) {
+			activeSection = visibleNavItems[0]?.value ?? 'configuracoes';
+		}
+	}
+
+	function getTenantStorageScope(storedSession = session) {
+		return storedSession?.payload.user?.tenant_id ?? storedSession?.payload.tenant?.id ?? null;
+	}
+
+	function isCurrentSessionLoad(loadVersion: number, token: string) {
+		const storedSession = getStoredSession();
+		return appLoadVersion === loadVersion && storedSession?.payload.token === token;
+	}
+
+	async function refreshAccountFromBackend(storedSession: StoredSession, loadVersion: number) {
+		try {
+			const currentAccount = await fetchCurrentAccount(storedSession.payload.token);
+			if (!isCurrentSessionLoad(loadVersion, storedSession.payload.token)) return null;
+
+			const refreshedSession = mergeCurrentAccountIntoSession(storedSession, currentAccount);
+			setStoredSession(refreshedSession);
+			loadSessionWorkspaceState(refreshedSession);
+			return refreshedSession;
+		} catch {
+			if (isCurrentSessionLoad(loadVersion, storedSession.payload.token)) {
+				clearStoredSession();
+				session = null;
+				void goto('/');
+			}
+
+			return null;
+		}
+	}
+
+	function getTenantStorageKey(key: string, scope = tenantStorageScope) {
+		return scope ? `${key}.${scope}` : key;
+	}
+
+	function hasPermission(scope: keyof NonNullable<StoredSession['payload']['user']>['permissions']) {
+		const value = session?.payload.user?.permissions[scope];
+		return value === 'own' || value === 'all';
+	}
+
+	function canAccessNavSection(section: NavSection) {
+		if (!session?.payload.user) return true;
+
+		if (section === 'aprendentes') return hasPermission('patients') || hasPermission('finance');
+		if (section === 'agenda') return hasPermission('calendar');
+		if (section === 'financeiro') return hasPermission('finance');
+		if (section === 'comunicacoes') return hasPermission('patients') || hasPermission('finance');
+		if (section === 'configuracoes') return session.payload.user.permissions.user_directory === 'all';
+
+		return true;
+	}
+
+	async function syncLearnersFromBackend(storedSession: StoredSession, loadVersion = appLoadVersion) {
+		try {
+			const backendLearners = await fetchBackendLearners(storedSession.payload.token);
+			if (!isCurrentSessionLoad(loadVersion, storedSession.payload.token)) return;
+			if (!backendLearners.length) return;
+
+			const nextLearners = mergeBackendLearners(learners, backendLearners);
+			learners = nextLearners;
+			persistLearners(nextLearners);
+			syncFamiliesForLearners(nextLearners);
+
+			if (!selectedLearnerId || !nextLearners.some((learner) => learner.id === selectedLearnerId)) {
+				selectedLearnerId = nextLearners[0]?.id ?? null;
+			}
+		} catch {
+			banner = {
+				tone: 'info',
+				text: 'Nao foi possivel sincronizar valores financeiros do backend; mantendo os dados locais.'
+			};
+		}
+	}
 
 	// Abre/fecha o menu lateral mobile sem afetar a navegacao desktop.
 	function toggleSidebar() {
@@ -142,27 +298,153 @@
 	function toggleTheme() {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		if (browser) {
-			localStorage.setItem('psicosistem.theme', theme);
+			localStorage.setItem(getTenantStorageKey('psicosistem.theme'), theme);
 		}
 	}
 
 	// Persiste o snapshot de aprendentes sempre que uma operacao clinica muda o estado.
 	function persistLearners(nextLearners = learners) {
 		if (!browser) return;
-		saveLearners(nextLearners);
+		saveLearners(nextLearners, tenantStorageScope);
 	}
 
 	// Persiste eventos livres, que vivem fora do prontuario de um aprendente especifico.
 	function persistAgendaEvents(nextEvents = agendaEvents) {
 		if (!browser) return;
-		saveAgendaEvents(nextEvents);
+		saveAgendaEvents(nextEvents, tenantStorageScope);
+	}
+
+	// Persiste os cards de comunicacao, que funcionam como um mini-CRM de familias.
+	function persistCommunicationFamilies(nextFamilies = communicationFamilies) {
+		if (!browser) return;
+		saveCommunicationFamilies(nextFamilies, tenantStorageScope);
+	}
+
+	function setCommunicationFamilies(
+		nextFamilies: CommunicationFamily[],
+		nextLearners = learners,
+		hiddenSourceKeys = hiddenCommunicationSourceKeys
+	) {
+		const syncedFamilies = syncCommunicationFamiliesWithLearners(
+			nextFamilies,
+			nextLearners,
+			hiddenSourceKeys
+		);
+		communicationFamilies = syncedFamilies;
+		persistCommunicationFamilies(syncedFamilies);
+
+		if (!selectedFamilyId || !syncedFamilies.some((family) => family.id === selectedFamilyId)) {
+			selectedFamilyId = null;
+		}
+	}
+
+	function syncFamiliesForLearners(nextLearners: Learner[]) {
+		if (!browser) return;
+		setCommunicationFamilies(communicationFamilies, nextLearners);
+	}
+
+	function confirmDeletion(message: string, title = 'Confirmar remocao') {
+		if (!browser) return Promise.resolve(false);
+
+		if (deletionConfirmation) {
+			deletionConfirmation.resolve(false);
+		}
+
+		return new Promise<boolean>((resolve) => {
+			deletionConfirmation = {
+				title,
+				message,
+				cancelLabel: 'Cancelar',
+				confirmLabel: 'Confirmar exclusao',
+				resolve
+			};
+		});
+	}
+
+	function closeDeletionConfirmation(confirmed: boolean) {
+		const currentConfirmation = deletionConfirmation;
+		if (!currentConfirmation) return;
+
+		deletionConfirmation = null;
+		currentConfirmation.resolve(confirmed);
+	}
+
+	function handleDeletionConfirmationKeydown(event: KeyboardEvent) {
+		if (!deletionConfirmation) return;
+
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			closeDeletionConfirmation(false);
+		}
+
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			closeDeletionConfirmation(true);
+		}
+	}
+
+	function getLearnerDocumentStorageKeys(learner: Learner) {
+		return [...learner.documents, ...learner.anamneseDocuments].map((document) =>
+			getDocumentStorageKey(learner.id, document.id)
+		);
 	}
 
 	// Atualiza qualquer aprendente por id, mantendo a data de edicao em um unico lugar.
 	function updateLearnerById(learnerId: string, patch: Partial<Learner>) {
+		const previousStatus = learners.find((learner) => learner.id === learnerId)?.status;
 		const nextLearners = patchLearnerInList(learners, learnerId, patch);
 		learners = nextLearners;
 		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
+
+		if (patch.status && patch.status !== previousStatus) {
+			void syncLearnerStatusWithBackend(learnerId, patch.status, previousStatus);
+		}
+	}
+
+	async function syncLearnerStatusWithBackend(
+		learnerId: string,
+		nextStatus: Learner['status'],
+		previousStatus?: Learner['status']
+	) {
+		if (!session?.payload.token) return;
+
+		const currentLearner = learners.find((learner) => learner.id === learnerId);
+		if (!currentLearner?.backendId) return;
+
+		try {
+			const backendLearner = await updateBackendLearner(session.payload.token, currentLearner);
+			if (!backendLearner) return;
+
+			const nextLearners = mergeBackendLearners(learners, [backendLearner]);
+			learners = nextLearners;
+			persistLearners(nextLearners);
+			syncFamiliesForLearners(nextLearners);
+			banner = {
+				tone: 'success',
+				text: `Status de ${currentLearner.name} atualizado no backend.`
+			};
+		} catch (error) {
+			if (previousStatus) {
+				const stillInDesiredStatus = learners.find((learner) => learner.id === learnerId)?.status === nextStatus;
+				if (stillInDesiredStatus) {
+					const revertedLearners = patchLearnerInList(learners, learnerId, {
+						status: previousStatus
+					});
+					learners = revertedLearners;
+					persistLearners(revertedLearners);
+					syncFamiliesForLearners(revertedLearners);
+				}
+			}
+
+			banner = {
+				tone: 'error',
+				text:
+					error instanceof Error
+						? error.message
+						: 'Nao foi possivel atualizar o status no backend.'
+			};
+		}
 	}
 
 	// Aplica mudancas no aprendente selecionado, usado por anamnese, documentos, plano e agenda.
@@ -212,8 +494,12 @@
 	}
 
 	// Remove campos personalizados do plano quando a clinica nao precisa mais daquela secao.
-	function removeCustomActionPlanFieldFromSelected(fieldId: string) {
+	async function removeCustomActionPlanFieldFromSelected(fieldId: string) {
 		if (!selectedLearner) return;
+
+		const field = selectedLearner.actionPlan.customFields.find((item) => item.id === fieldId);
+		const fieldName = field?.label ? `"${field.label}"` : 'este campo';
+		if (!(await confirmDeletion(`Remover ${fieldName} do plano de acao?`))) return;
 
 		updateSelectedLearner({
 			actionPlan: removeCustomActionPlanField(selectedLearner.actionPlan, fieldId)
@@ -243,6 +529,31 @@
 			return false;
 		}
 
+		const filledGuardians = getFilledGuardianInputs(input.guardians);
+		if (filledGuardians.length === 0) {
+			banner = {
+				tone: 'error',
+				text: 'Informe pelo menos um responsavel do aprendente.'
+			};
+			return false;
+		}
+
+		if (filledGuardians.some((guardian) => !guardian.relationship.trim())) {
+			banner = {
+				tone: 'error',
+				text: 'Selecione o parentesco de cada responsavel informado.'
+			};
+			return false;
+		}
+
+		if (hasDuplicateGuardian(filledGuardians)) {
+			banner = {
+				tone: 'error',
+				text: 'O mesmo responsavel nao pode ser informado duas vezes no aprendente.'
+			};
+			return false;
+		}
+
 		const createdLearner = createLearner(input);
 		const nextLearners = [createdLearner, ...learners];
 		learners = nextLearners;
@@ -251,12 +562,81 @@
 		detailTab = 'resumo';
 		showAddForm = false;
 		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
+
+		// banner = {
+		// 	tone: 'success',
+		// 	text: 'Aprendente adicionado ao painel.'
+		// };
+		return true;
+	}
+
+	async function deleteLearner(learnerId: string) {
+		const learner = learners.find((item) => item.id === learnerId);
+		if (!learner) return;
+
+		if (
+			!(await confirmDeletion(
+				`Excluir o aprendente "${learner.name}"? Isso remove o prontuario, agenda, documentos e relatorios desse aprendente.`
+			))
+		) {
+			return;
+		}
+
+		try {
+			await Promise.all(getLearnerDocumentStorageKeys(learner).map((key) => deleteDocumentBlob(key)));
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir os arquivos do aprendente.'
+			};
+			return;
+		}
+
+		const nextLearners = learners.filter((item) => item.id !== learnerId);
+		learners = nextLearners;
+		persistLearners(nextLearners);
+		syncFamiliesForLearners(nextLearners);
+
+		if (selectedLearnerId === learnerId) {
+			selectedLearnerId = nextLearners[0]?.id ?? null;
+			selectedVisitId = null;
+			detailTab = 'resumo';
+		}
 
 		banner = {
 			tone: 'success',
-			text: 'Aprendente adicionado ao painel.'
+			text: 'Aprendente excluido com sucesso.'
 		};
-		return true;
+	}
+
+	function confirmDeactivateTeamUser(user: TeamUser) {
+		return confirmDeletion(
+			`Desativar a conta de "${user.name}"? Essa pessoa nao conseguira mais acessar esta clinica.`,
+			'Desativar conta'
+		);
+	}
+
+	function getFilledGuardianInputs(guardians: LearnerGuardianInput[]) {
+		return guardians.filter(
+			(guardian) =>
+				guardian.name.trim() ||
+				guardian.relationship.trim() ||
+				guardian.phone.trim() ||
+				guardian.sourceKey.trim()
+		);
+	}
+
+	function hasDuplicateGuardian(guardians: LearnerGuardianInput[]) {
+		const keys = new Set<string>();
+		for (const guardian of guardians) {
+			const key = guardian.sourceKey || normalizeResponsibleKey(guardian.name);
+			if (!key) continue;
+			if (keys.has(key)) return true;
+			keys.add(key);
+		}
+
+		return false;
 	}
 
 	// Abre o prontuario do aprendente e volta para a secao principal quando necessario.
@@ -268,6 +648,326 @@
 		banner = null;
 	}
 
+	function selectFamily(id: string) {
+		selectedFamilyId = id;
+		banner = null;
+	}
+
+	function closeFamily() {
+		selectedFamilyId = null;
+		banner = null;
+	}
+
+	function openLearnerResponsible(learner: Learner) {
+		let family = communicationFamilies.find((item) => item.learnerIds.includes(learner.id)) ?? null;
+		const learnerGuardians = getLearnerGuardianEntries(learner);
+		const primaryGuardian = learnerGuardians[0] ?? null;
+
+		if (!family && primaryGuardian) {
+			family = createCommunicationFamily({
+				familyName: buildFamilyNameFromLearner(learner),
+				responsibleName: primaryGuardian.name,
+				responsiblePhone: primaryGuardian.phone,
+				relationship: primaryGuardian.relationship,
+				learnerIds: [learner.id]
+			});
+			const sourceKey = family.sourceGuardianKey;
+			let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+			if (sourceKey && hiddenCommunicationSourceKeys.includes(sourceKey)) {
+				nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== sourceKey);
+				hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+				saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
+			}
+			setCommunicationFamilies([family, ...communicationFamilies], learners, nextHiddenSourceKeys);
+		}
+
+		if (family) {
+			selectedFamilyId = family.id;
+		}
+
+		activeSection = 'comunicacoes';
+		showAddForm = false;
+		banner = family
+			? null
+			: {
+					tone: 'info',
+					text: 'Informe um responsavel no cadastro do aprendente para abrir a comunicacao.'
+				};
+	}
+
+	function buildFamilyNameFromLearner(learner: Learner) {
+		return `Contatos de ${learner.name}`;
+	}
+
+	function createCommunicationFamilyCard(input: NewCommunicationFamilyInput) {
+		const normalizedInput = {
+			...input,
+			familyName: input.familyName.trim() || buildCommunicationFamilyName(input)
+		};
+
+		if (!normalizedInput.responsibleName.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o responsavel principal.'
+			};
+			return false;
+		}
+
+		if (!isValidPhoneNumber(normalizedInput.responsiblePhone)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		if (isResponsibleUsedInAnotherFamily(normalizedInput.responsibleName)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja possui um card de comunicacao.'
+			};
+			return false;
+		}
+
+		const createdFamily = createCommunicationFamily(normalizedInput);
+		const createdSourceKey = createdFamily.sourceGuardianKey;
+		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+		if (createdSourceKey && hiddenCommunicationSourceKeys.includes(createdSourceKey)) {
+			nextHiddenSourceKeys = hiddenCommunicationSourceKeys.filter((key) => key !== createdSourceKey);
+			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
+		}
+
+		selectedFamilyId = createdFamily.id;
+		setCommunicationFamilies([createdFamily, ...communicationFamilies], learners, nextHiddenSourceKeys);
+		banner = {
+			tone: 'success',
+			text: 'Card de comunicacao criado.'
+		};
+		return true;
+	}
+
+	function buildCommunicationFamilyName(input: NewCommunicationFamilyInput) {
+		const linkedLearners = input.learnerIds
+			.map((learnerId) => learners.find((learner) => learner.id === learnerId))
+			.filter((learner): learner is Learner => Boolean(learner));
+
+		if (linkedLearners.length) {
+			const [firstLearner] = linkedLearners;
+			return linkedLearners.length === 1
+				? `Contatos de ${firstLearner.name}`
+				: `Contatos de ${firstLearner.name} +${linkedLearners.length - 1}`;
+		}
+
+		const responsibleName = input.responsibleName.trim();
+		return responsibleName ? `Contatos de ${responsibleName}` : 'Contatos do aprendente';
+	}
+
+	function updateCommunicationFamily(familyId: string, patch: Partial<CommunicationFamily>) {
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId
+				? {
+						...family,
+						...patch,
+						updatedAt: new Date().toISOString()
+					}
+				: family
+		);
+		setCommunicationFamilies(nextFamilies);
+	}
+
+	async function deleteCommunicationFamily(familyId: string) {
+		const removedFamily = communicationFamilies.find((family) => family.id === familyId);
+		if (!removedFamily) return;
+
+		if (!(await confirmDeletion(`Excluir o card de comunicacao "${removedFamily.familyName}"?`))) {
+			return;
+		}
+
+		const nextFamilies = communicationFamilies.filter((family) => family.id !== familyId);
+		let nextHiddenSourceKeys = hiddenCommunicationSourceKeys;
+		const removedSourceKeys = getCommunicationFamilyResponsibleKeys(removedFamily);
+
+		if (removedSourceKeys.length) {
+			nextHiddenSourceKeys = Array.from(
+				new Set([...hiddenCommunicationSourceKeys, ...removedSourceKeys])
+			);
+			hiddenCommunicationSourceKeys = nextHiddenSourceKeys;
+			saveHiddenCommunicationSourceKeys(nextHiddenSourceKeys, tenantStorageScope);
+		}
+
+		setCommunicationFamilies(nextFamilies, learners, nextHiddenSourceKeys);
+		banner = {
+			tone: 'success',
+			text: 'Card de comunicacao removido.'
+		};
+	}
+
+	function addResponsibleToCommunicationFamily(
+		familyId: string,
+		input: NewCommunicationResponsibleInput
+	) {
+		if (!input.name.trim() || !input.phone.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe nome e numero do responsavel.'
+			};
+			return false;
+		}
+
+		if (!isValidPhoneNumber(input.phone)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		if (!family) return false;
+
+		if (family.responsibles.length >= 2) {
+			banner = {
+				tone: 'error',
+				text: 'Cada card pode ter no maximo dois responsaveis.'
+			};
+			return false;
+		}
+
+		if (isResponsibleInFamily(family, input.name)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja esta neste card.'
+			};
+			return false;
+		}
+
+		if (isResponsibleUsedInAnotherFamily(input.name, familyId)) {
+			banner = {
+				tone: 'error',
+				text: 'Esse responsavel ja possui outro card de comunicacao.'
+			};
+			return false;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? addResponsibleToFamily(family, input) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Responsavel adicionado ao card.'
+		};
+		return true;
+	}
+
+	function isResponsibleUsedInAnotherFamily(responsibleName: string, ignoredFamilyId?: string) {
+		const key = normalizeResponsibleKey(responsibleName);
+		if (!key) return false;
+
+		return communicationFamilies.some(
+			(family) =>
+				family.id !== ignoredFamilyId && getCommunicationFamilyResponsibleKeys(family).includes(key)
+		);
+	}
+
+	function isResponsibleInFamily(family: CommunicationFamily, responsibleName: string) {
+		const key = normalizeResponsibleKey(responsibleName);
+		if (!key) return false;
+
+		return getCommunicationFamilyResponsibleKeys(family).includes(key);
+	}
+
+	async function removeResponsibleFromCommunicationFamily(familyId: string, responsibleId: string) {
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		const responsible = family?.responsibles.find((item) => item.id === responsibleId);
+		if (!family || !responsible) return;
+
+		if (!(await confirmDeletion(`Remover "${responsible.name}" do card "${family.familyName}"?`))) {
+			return;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? removeResponsibleFromFamily(family, responsibleId) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Responsavel removido do card.'
+		};
+	}
+
+	function addContactToCommunicationFamily(familyId: string, input: NewCommunicationContactInput) {
+		if (!input.value.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o contato que sera adicionado.'
+			};
+			return false;
+		}
+
+		if ((input.type === 'phone' || input.type === 'whatsapp') && !isValidPhoneNumber(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um numero com 10 ou 11 digitos.'
+			};
+			return false;
+		}
+
+		if (input.type === 'instagram' && !isValidInstagramHandle(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um @ de Instagram valido.'
+			};
+			return false;
+		}
+
+		if (input.type === 'email' && !isValidEmailAddress(input.value)) {
+			banner = {
+				tone: 'error',
+				text: 'Informe um e-mail valido.'
+			};
+			return false;
+		}
+
+		if (input.type !== 'instagram' && !input.label.trim()) {
+			banner = {
+				tone: 'error',
+				text: 'Informe o nome do contato.'
+			};
+			return false;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? addContactToFamily(family, input) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Contato adicionado ao card.'
+		};
+		return true;
+	}
+
+	async function removeContactFromCommunicationFamily(familyId: string, contactId: string) {
+		const family = communicationFamilies.find((item) => item.id === familyId);
+		const contact = family?.contacts.find((item) => item.id === contactId);
+		if (!family || !contact) return;
+
+		if (!(await confirmDeletion(`Remover o contato "${contact.label || contact.value}" deste card?`))) {
+			return;
+		}
+
+		const nextFamilies = communicationFamilies.map((family) =>
+			family.id === familyId ? removeContactFromFamily(family, contactId) : family
+		);
+		setCommunicationFamilies(nextFamilies);
+		banner = {
+			tone: 'success',
+			text: 'Contato removido do card.'
+		};
+	}
+
 	// Troca o aprendente dentro da agenda sem tirar o usuario da visualizacao de calendario.
 	function selectLearnerInsideAgenda(id: string) {
 		selectedLearnerId = id;
@@ -277,14 +977,20 @@
 
 	// Mapeia secoes do menu lateral para a aba interna equivalente do prontuario.
 	function selectSection(section: NavSection) {
+		if (!canAccessNavSection(section)) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para acessar esta secao.'
+			};
+			return;
+		}
+
 		activeSection = section;
 		showAddForm = false;
 		isSidebarOpen = false;
 
 		if (section === 'agenda') {
 			detailTab = 'agenda';
-		} else if (section === 'financeiro') {
-			detailTab = 'anamnese';
 		} else if (section === 'comunicacoes') {
 			detailTab = 'relatorios';
 		}
@@ -292,6 +998,14 @@
 
 	// Entrada do dropdown de perfil para conduzir o usuario ate configuracoes futuras.
 	function editProfile() {
+		if (!canAccessNavSection('configuracoes')) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para gerenciar configuracoes da clinica.'
+			};
+			return;
+		}
+
 		activeSection = 'configuracoes';
 		showAddForm = false;
 		banner = {
@@ -302,6 +1016,14 @@
 
 	// Abre a area de configuracoes a partir do menu de perfil.
 	function openSettings() {
+		if (!canAccessNavSection('configuracoes')) {
+			banner = {
+				tone: 'error',
+				text: 'Sua conta nao tem permissao para gerenciar configuracoes da clinica.'
+			};
+			return;
+		}
+
 		activeSection = 'configuracoes';
 		showAddForm = false;
 		banner = {
@@ -324,15 +1046,28 @@
 
 		const existingVisit = selectedLearner?.visits.find((visit) => visit.date === date) ?? null;
 		selectedVisitId = existingVisit?.id ?? null;
-		activeSection = 'agenda';
+
 		detailTab = 'agenda';
 		showAddForm = false;
 		banner = null;
 	}
 
+	function openAgendaWorkspace() {
+		activeSection = 'agenda';
+		detailTab = 'agenda';
+		showAddForm = false;
+		isSidebarOpen = false;
+		banner = null;
+	}
+
 	// Remove uma visita e sincroniza a contagem exibida no cadastro do aprendente.
-	function removeVisit(id: string) {
+	async function removeVisit(id: string) {
 		if (!selectedLearner) return;
+		const visit = selectedLearner.visits.find((item) => item.id === id);
+		if (!visit) return;
+
+		if (!(await confirmDeletion(`Remover a sessao de ${visit.date} as ${visit.startTime}?`))) return;
+
 		const nextVisits = removeVisitFromList(selectedLearner.visits, id);
 
 		updateSelectedLearner({
@@ -340,12 +1075,26 @@
 			visitCount: nextVisits.length
 		});
 		selectedVisitId = null;
+		banner = {
+			tone: 'success',
+			text: 'Sessao removida da agenda.'
+		};
 	}
 
 	// Remove uma sessao diretamente da agenda diaria, mesmo quando outro aprendente esta aberto.
-	function removeSessionAppointment(learnerId: string, visitId: string) {
+	async function removeSessionAppointment(learnerId: string, visitId: string) {
 		const learner = learners.find((item) => item.id === learnerId);
 		if (!learner) return;
+		const visit = learner.visits.find((item) => item.id === visitId);
+		if (!visit) return;
+
+		if (
+			!(await confirmDeletion(
+				`Remover a sessao de ${learner.name} em ${visit.date} as ${visit.startTime}?`
+			))
+		) {
+			return;
+		}
 
 		const nextVisits = removeVisitFromList(learner.visits, visitId);
 		updateLearnerById(learner.id, {
@@ -430,7 +1179,9 @@
 	}
 
 	// Remove eventos livres sem mexer nas sessoes registradas nos aprendentes.
-	function removeAgendaEvent(event: AgendaEvent) {
+	async function removeAgendaEvent(event: AgendaEvent) {
+		if (!(await confirmDeletion(`Remover o evento "${event.title}" da agenda?`))) return;
+
 		const nextEvents = removeAgendaEventById(agendaEvents, event.id);
 		agendaEvents = nextEvents;
 		persistAgendaEvents(nextEvents);
@@ -596,20 +1347,46 @@
 	async function removeDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
 
-		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
-		updateSelectedLearner({
-			documents: selectedLearner.documents.filter((item) => item.id !== document.id)
-		});
+		if (!(await confirmDeletion(`Excluir o documento "${document.name}"?`))) return;
+
+		try {
+			await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+			updateSelectedLearner({
+				documents: selectedLearner.documents.filter((item) => item.id !== document.id)
+			});
+			banner = {
+				tone: 'success',
+				text: 'Documento excluido.'
+			};
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir o documento.'
+			};
+		}
 	}
 
 	// Remove anexos da anamnese sem afetar os documentos gerais do aprendente.
 	async function removeAnamneseDocument(document: LearnerDocument) {
 		if (!selectedLearner) return;
 
-		await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
-		updateSelectedLearner({
-			anamneseDocuments: selectedLearner.anamneseDocuments.filter((item) => item.id !== document.id)
-		});
+		if (!(await confirmDeletion(`Excluir o anexo "${document.name}" da anamnese?`))) return;
+
+		try {
+			await deleteDocumentBlob(getDocumentStorageKey(selectedLearner.id, document.id));
+			updateSelectedLearner({
+				anamneseDocuments: selectedLearner.anamneseDocuments.filter((item) => item.id !== document.id)
+			});
+			banner = {
+				tone: 'success',
+				text: 'Anexo da anamnese excluido.'
+			};
+		} catch (error) {
+			banner = {
+				tone: 'error',
+				text: error instanceof Error ? error.message : 'Nao foi possivel excluir o anexo.'
+			};
+		}
 	}
 
 	// Registra relatorios com carimbo de criacao e atualizacao.
@@ -623,17 +1400,26 @@
 	}
 
 	// Remove um relatorio mantendo os demais registros historicos intactos.
-	function removeReport(id: string) {
+	async function removeReport(id: string) {
 		if (!selectedLearner) return;
+		const report = selectedLearner.reports.find((item) => item.id === id);
+		if (!report) return;
+
+		if (!(await confirmDeletion('Excluir este relatorio do aprendente?'))) return;
 
 		const nextLearner = removeReportFromLearner(selectedLearner, id);
 		updateSelectedLearner({
 			reports: nextLearner.reports
 		});
+		banner = {
+			tone: 'success',
+			text: 'Relatorio excluido.'
+		};
 	}
 
 	// Encerra a sessao local e retorna para login.
 	function logout() {
+		appLoadVersion += 1;
 		clearStoredSession();
 		void goto('/');
 	}
@@ -642,6 +1428,8 @@
 <svelte:head>
 	<title>PsicoSistem | Painel</title>
 </svelte:head>
+
+<svelte:window onkeydown={handleDeletionConfirmationKeydown} />
 
 {#if !session}
 	<!-- Estado de carregamento antes de validar a sessao local. -->
@@ -661,6 +1449,7 @@
 			<AppSidebar
 				{tenantName}
 				{activeSection}
+				navItems={visibleNavItems}
 				isOpen={isSidebarOpen}
 				onSelectSection={selectSection}
 				onClose={closeSidebar}
@@ -682,6 +1471,13 @@
 					{searchTerm}
 					{userName}
 					{theme}
+					searchPlaceholder={
+						activeSection === 'comunicacoes'
+							? 'Buscar familia, responsavel ou aprendente...'
+							: activeSection === 'configuracoes'
+								? 'Buscar configuracoes e contas...'
+							: 'Buscar aprendente ou agendamento...'
+					}
 					onToggleSidebar={toggleSidebar}
 					onSearchTermChange={(value) => (searchTerm = value)}
 					onEditProfile={editProfile}
@@ -692,71 +1488,138 @@
 
 				<WorkspaceBanner {banner} />
 
-				<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
-				{#if activeSection === 'agenda'}
-					<AgendaWorkspace
-						calendarDays={agendaCalendarDays}
-						{monthLabel}
-						selectedDate={selectedAgendaDate}
-						{currentDateLabel}
-						{learners}
-						{selectedLearnerId}
-						{userName}
-						dayItems={selectedDayItems}
-						{pendingVisits}
-						onShiftMonth={shiftMonth}
-						onSelectCalendarDate={handleCalendarDate}
-						onSelectLearnerId={selectLearnerInsideAgenda}
-						onOpenLearner={selectLearner}
-						onCreateSession={createSessionAppointment}
-						onCreateEvent={createEventAppointment}
-						onRemoveSession={removeSessionAppointment}
-						onRemoveEvent={removeAgendaEvent}
-					/>
-				
-				{:else}
-
-					<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
-					<LearnersWorkspace
-						{activeSection}
-						{filteredLearners}
-						{selectedLearnerId}
-						{selectedLearner}
-						{learnerFilter}
-						{showAddForm}
-						{detailTab}
-						calendarDays={selectedLearnerCalendarDays}
-						{monthLabel}
-						selectedDate={selectedAgendaDate}
-						{selectedVisit}
-						{isUploading}
-						planCategories={PLAN_CATEGORIES}
-						onOpenAddForm={() => (showAddForm = true)}
-						onCloseAddForm={() => (showAddForm = false)}
-						onCreateLearner={handleCreateLearner}
-						onSelectLearner={selectLearner}
-						onSetLearnerFilter={(filter) => (learnerFilter = filter)}
-						onSelectTab={(tab) => (detailTab = tab)}
-						onShiftMonth={shiftMonth}
-						onSelectCalendarDate={handleCalendarDate}
-						onUpdateLearner={updateSelectedLearner}
-						onUpdateActionPlan={updateActionPlan}
-						onAddCustomActionPlanField={addCustomActionPlanFieldToSelected}
-						onUpdateCustomActionPlanField={updateCustomActionPlanFieldForSelected}
-						onRemoveCustomActionPlanField={removeCustomActionPlanFieldFromSelected}
-						onUpdateVisit={updateVisit}
-						onRemoveVisit={removeVisit}
-						onUploadDocuments={handleDocumentUpload}
-						onDownloadDocument={downloadDocument}
-						onRemoveDocument={removeDocument}
-						onUploadAnamneseDocuments={handleAnamneseDocumentUpload}
-						onDownloadAnamneseDocument={downloadAnamneseDocument}
-						onRemoveAnamneseDocument={removeAnamneseDocument}
-						onAddReport={addReport}
-						onRemoveReport={removeReport}
-					/>
-				{/if}
+				{#key activeSection}
+					<div class="workspace-motion" transition:fly={{ y: 16, duration: 700 }}>
+						<!-- Workspace de agenda global: mostra compromissos de todos os aprendentes. -->
+						{#if activeSection === 'agenda'}
+							<AgendaWorkspace
+								calendarDays={agendaCalendarDays}
+								{monthLabel}
+								selectedDate={selectedAgendaDate}
+								{currentDateLabel}
+								{learners}
+								{selectedLearnerId}
+								{userName}
+								dayItems={selectedDayItems}
+								{pendingVisits}
+								onShiftMonth={shiftMonth}
+								onSelectCalendarDate={handleCalendarDate}
+								onSelectLearnerId={selectLearnerInsideAgenda}
+								onOpenLearner={selectLearner}
+								onCreateSession={createSessionAppointment}
+								onCreateEvent={createEventAppointment}
+								onRemoveSession={removeSessionAppointment}
+								onRemoveEvent={removeAgendaEvent}
+							/>
+						{:else if activeSection === 'financeiro'}
+							<FinanceWorkspace {learners} />
+						{:else if activeSection === 'comunicacoes'}
+							<CommunicationsWorkspace
+								{learners}
+								families={communicationFamilies}
+								{selectedFamilyId}
+								{searchTerm}
+								onCreateFamily={createCommunicationFamilyCard}
+								onUpdateFamily={updateCommunicationFamily}
+								onDeleteFamily={deleteCommunicationFamily}
+								onAddResponsible={addResponsibleToCommunicationFamily}
+								onRemoveResponsible={removeResponsibleFromCommunicationFamily}
+								onAddContact={addContactToCommunicationFamily}
+								onRemoveContact={removeContactFromCommunicationFamily}
+								onSelectFamily={selectFamily}
+								onCloseFamily={closeFamily}
+							/>
+						{:else if activeSection === 'configuracoes'}
+							<SettingsWorkspace {session} onConfirmDeactivate={confirmDeactivateTeamUser} />
+						{:else}
+							<!-- Workspace de prontuario: lista, cadastro e detalhe do aprendente selecionado. -->
+							<LearnersWorkspace
+								{activeSection}
+								{filteredLearners}
+								{selectedLearnerId}
+								{selectedLearner}
+								{learnerFilter}
+								{guardianOptions}
+								{showAddForm}
+								{detailTab}
+								calendarDays={selectedLearnerCalendarDays}
+								{monthLabel}
+								selectedDate={selectedAgendaDate}
+								{selectedVisit}
+								{isUploading}
+								planCategories={PLAN_CATEGORIES}
+								onOpenAddForm={() => (showAddForm = true)}
+								onCloseAddForm={() => (showAddForm = false)}
+								onCreateLearner={handleCreateLearner}
+								onDeleteLearner={deleteLearner}
+								onSelectLearner={selectLearner}
+								onSetLearnerFilter={(filter) => (learnerFilter = filter)}
+								onSelectTab={(tab) => (detailTab = tab)}
+								onShiftMonth={shiftMonth}
+								onSelectCalendarDate={handleCalendarDate}
+								onUpdateLearner={updateSelectedLearner}
+								onUpdateActionPlan={updateActionPlan}
+								onOpenAgendaWorkspace={openAgendaWorkspace}
+								onAddCustomActionPlanField={addCustomActionPlanFieldToSelected}
+								onUpdateCustomActionPlanField={updateCustomActionPlanFieldForSelected}
+								onRemoveCustomActionPlanField={removeCustomActionPlanFieldFromSelected}
+								onUpdateVisit={updateVisit}
+								onRemoveVisit={removeVisit}
+								onUploadDocuments={handleDocumentUpload}
+								onDownloadDocument={downloadDocument}
+								onRemoveDocument={removeDocument}
+								onUploadAnamneseDocuments={handleAnamneseDocumentUpload}
+								onDownloadAnamneseDocument={downloadAnamneseDocument}
+								onRemoveAnamneseDocument={removeAnamneseDocument}
+								onAddReport={addReport}
+								onRemoveReport={removeReport}
+								onOpenResponsible={openLearnerResponsible}
+							/>
+						{/if}
+					</div>
+				{/key}
 			</section>
 		</div>
+
+		{#if deletionConfirmation}
+			<div class="confirmation-overlay" role="presentation">
+				<button
+					type="button"
+					class="confirmation-backdrop"
+					aria-label="Cancelar exclusao"
+					onclick={() => closeDeletionConfirmation(false)}
+				></button>
+
+				<div
+					class="confirmation-dialog"
+					role="dialog"
+					aria-modal="true"
+					aria-labelledby="deletion-confirmation-title"
+				>
+					<div class="confirmation-icon" aria-hidden="true">!</div>
+					<div class="confirmation-copy">
+						<span>Acao irreversivel</span>
+						<h2 id="deletion-confirmation-title">{deletionConfirmation.title}</h2>
+						<p>{deletionConfirmation.message}</p>
+					</div>
+					<div class="confirmation-actions">
+						<button
+							type="button"
+							class="secondary-button"
+							onclick={() => closeDeletionConfirmation(false)}
+						>
+							{deletionConfirmation.cancelLabel}
+						</button>
+						<button
+							type="button"
+							class="danger-button confirmation-danger"
+							onclick={() => closeDeletionConfirmation(true)}
+						>
+							{deletionConfirmation.confirmLabel}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 	</div>
 {/if}

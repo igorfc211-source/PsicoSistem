@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import type { NavSection } from '$lib/modules/clinic-shell/types';
 	import { getSectionTitle } from '$lib/modules/clinic-shell/types';
 	import type {
 		ActionPlan,
 		CalendarDay,
 		CoreActionPlanKey,
+		GuardianOption,
 		Learner,
 		LearnerDocument,
 		NewLearnerInput,
@@ -22,6 +24,7 @@
 		selectedLearnerId,
 		selectedLearner,
 		learnerFilter,
+		guardianOptions,
 		showAddForm,
 		detailTab,
 		calendarDays,
@@ -33,6 +36,7 @@
 		onOpenAddForm,
 		onCloseAddForm,
 		onCreateLearner,
+		onDeleteLearner,
 		onSelectLearner,
 		onSetLearnerFilter,
 		onSelectTab,
@@ -40,6 +44,7 @@
 		onSelectCalendarDate,
 		onUpdateLearner,
 		onUpdateActionPlan,
+		onOpenAgendaWorkspace,
 		onAddCustomActionPlanField,
 		onUpdateCustomActionPlanField,
 		onRemoveCustomActionPlanField,
@@ -52,13 +57,15 @@
 		onDownloadAnamneseDocument,
 		onRemoveAnamneseDocument,
 		onAddReport,
-		onRemoveReport
+		onRemoveReport,
+		onOpenResponsible
 	} = $props<{
 		activeSection: NavSection;
 		filteredLearners: Learner[];
 		selectedLearnerId: string | null;
 		selectedLearner: Learner | null;
 		learnerFilter: LearnerFilter;
+		guardianOptions: GuardianOption[];
 		showAddForm: boolean;
 		detailTab: DetailTab;
 		calendarDays: CalendarDay[];
@@ -70,6 +77,7 @@
 		onOpenAddForm: () => void;
 		onCloseAddForm: () => void;
 		onCreateLearner: (input: NewLearnerInput) => boolean;
+		onDeleteLearner: (learnerId: string) => void | Promise<void>;
 		onSelectLearner: (id: string) => void;
 		onSetLearnerFilter: (filter: LearnerFilter) => void;
 		onSelectTab: (tab: DetailTab) => void;
@@ -77,6 +85,7 @@
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateLearner: (patch: Partial<Learner>) => void;
 		onUpdateActionPlan: (key: CoreActionPlanKey, value: string) => void;
+		onOpenAgendaWorkspace: () => void;
 		onAddCustomActionPlanField: (label: string, description: string) => boolean;
 		onUpdateCustomActionPlanField: (fieldId: string, value: string) => void;
 		onRemoveCustomActionPlanField: (fieldId: string) => void;
@@ -90,6 +99,7 @@
 		onRemoveAnamneseDocument: (document: LearnerDocument) => void | Promise<void>;
 		onAddReport: (text: string) => void;
 		onRemoveReport: (id: string) => void;
+		onOpenResponsible: (learner: Learner) => void;
 	}>();
 </script>
 
@@ -105,7 +115,23 @@
 
 			<div class="title-actions">
 				<button type="button" class="icon-button" aria-label="Filtros">=</button>
-				<button type="button" class="primary-button" onclick={onOpenAddForm}>+ Adicionar</button>
+				{#if !showAddForm}
+				<button
+					type="button"
+					class="primary-button"
+					onclick={onOpenAddForm}
+				>
+					+ Adicionar
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="primary-button close-button"
+					onclick={onCloseAddForm}
+				>
+					✕ Fechar
+				</button>
+			{/if}
 			</div>
 		</div>
 
@@ -136,7 +162,13 @@
 
 		<!-- Formulario expansivel: fica perto da lista para manter o fluxo de cadastro curto. -->
 		{#if showAddForm}
-			<LearnerAddForm onCreate={onCreateLearner} onCancel={onCloseAddForm} />
+			<div class="motion-panel" transition:fly={{ y: -14, duration: 180 }}>
+				<LearnerAddForm
+					{guardianOptions}
+					onCreate={onCreateLearner}
+					onCancel={onCloseAddForm}
+				/>
+			</div>
 		{/if}
 
 		<!-- Lista navegavel de aprendentes; ao selecionar, o detalhe abre na coluna direita. -->
@@ -161,6 +193,8 @@
 		onShiftMonth={onShiftMonth}
 		onSelectCalendarDate={onSelectCalendarDate}
 		onUpdateLearner={onUpdateLearner}
+		onDeleteLearner={onDeleteLearner}
+		onOpenAgendaWorkspace={onOpenAgendaWorkspace}
 		onUpdateActionPlan={onUpdateActionPlan}
 		onAddCustomActionPlanField={onAddCustomActionPlanField}
 		onUpdateCustomActionPlanField={onUpdateCustomActionPlanField}
@@ -175,5 +209,18 @@
 		onRemoveAnamneseDocument={onRemoveAnamneseDocument}
 		onAddReport={onAddReport}
 		onRemoveReport={onRemoveReport}
+		onOpenResponsible={onOpenResponsible}
 	/>
 </section>
+
+<style>
+	.close-button {
+	background: #e04545;
+	color: #1f1f1f;
+	border: 1px solid #f07f7f;
+}
+
+.close-button:hover {
+	background: #e26d6d;
+}
+</style>

@@ -47,6 +47,27 @@
 		onRemoveSession: (learnerId: string, visitId: string) => void;
 		onRemoveEvent: (event: AgendaEvent) => void;
 	}>();
+
+	let isSchedulerComposerOpen = $state(false);
+
+	function openSchedulerComposer() {
+
+		if (isSchedulerComposerOpen == false) {
+			isSchedulerComposerOpen = true;
+		}
+		else {
+			isSchedulerComposerOpen = false;
+		}
+
+
+
+		
+	}
+
+	function handleSelectCalendarDate(date: string) {
+		isSchedulerComposerOpen = false;
+		onSelectCalendarDate(date);
+	}
 </script>
 
 <section class="agenda-workspace">
@@ -61,7 +82,7 @@
 			{selectedDate}
 			variant="mini"
 			onShiftMonth={onShiftMonth}
-			onSelectDate={onSelectCalendarDate}
+			onSelectDate={handleSelectCalendarDate}
 		/>
 
 		<!-- Filtros de agenda: preparados para crescer com equipe, sala ou aprendente. -->
@@ -103,7 +124,7 @@
 						type="button"
 						onclick={() => {
 							onSelectLearnerId(item.learner.id);
-							onSelectCalendarDate(item.visit.date);
+							handleSelectCalendarDate(item.visit.date);
 						}}
 					>
 						<strong>{item.learner.name}</strong>
@@ -120,16 +141,17 @@
 	<div class="agenda-main">
 		<!-- Toolbar superior: troca de visualizacao e atalho para agendar no dia selecionado. -->
 		<div class="agenda-toolbar">
-			<div class="view-switch">
-				<button type="button" class="active">Dia</button>
-				<button type="button">Semana</button>
-				<button type="button">Mes</button>
-				<button type="button">Ano</button>
-			</div>
 			<strong>{currentDateLabel}</strong>
-			<button type="button" class="primary-button" onclick={() => onSelectCalendarDate(selectedDate)}>
+			{#if isSchedulerComposerOpen == false}
+			<button type="button" class="primary-button" onclick={openSchedulerComposer}>
 				+ Agendar neste dia
 			</button>
+		
+			{:else}
+			<button type="button" class="primary-button" onclick={openSchedulerComposer}>
+				Fechar aba
+			</button>
+			{/if}
 		</div>
 
 		<!-- Linha do tempo diaria: lista, adiciona e remove sessoes/eventos do dia. -->
@@ -139,6 +161,7 @@
 			{learners}
 			{selectedLearnerId}
 			{dayItems}
+			isComposerOpen={isSchedulerComposerOpen}
 			onCreateSession={onCreateSession}
 			onCreateEvent={onCreateEvent}
 			onOpenLearner={onOpenLearner}

@@ -16,6 +16,13 @@ type Config struct {
 	Port                string
 	SecretKey           string
 	JWTIssuer           string
+	FrontendURL         string
+	PasswordResetTTLMin int
+	SMTPHost            string
+	SMTPPort            string
+	SMTPUsername        string
+	SMTPPassword        string
+	SMTPFrom            string
 	StorageDriver       string
 	DataFile            string
 	DatabaseURL         string
@@ -83,6 +90,13 @@ func Load() (*Config, error) {
 		Port:                port,
 		SecretKey:           secret,
 		JWTIssuer:           issuer,
+		FrontendURL:         strings.TrimRight(strings.TrimSpace(envOrDefault("FRONTEND_URL", "http://localhost:3000")), "/"),
+		PasswordResetTTLMin: envInt("PASSWORD_RESET_TTL_MINUTES", 30),
+		SMTPHost:            strings.TrimSpace(os.Getenv("SMTP_HOST")),
+		SMTPPort:            strings.TrimSpace(envOrDefault("SMTP_PORT", "587")),
+		SMTPUsername:        strings.TrimSpace(os.Getenv("SMTP_USERNAME")),
+		SMTPPassword:        strings.TrimSpace(os.Getenv("SMTP_PASSWORD")),
+		SMTPFrom:            strings.TrimSpace(os.Getenv("SMTP_FROM")),
 		StorageDriver:       storageDriver,
 		DataFile:            dataFile,
 		DatabaseURL:         databaseURL,

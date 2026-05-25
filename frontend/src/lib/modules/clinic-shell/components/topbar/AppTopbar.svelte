@@ -5,6 +5,7 @@
 		searchTerm,
 		userName,
 		theme,
+		searchPlaceholder = 'Buscar aprendente ou agendamento...',
 		onToggleSidebar,
 		onSearchTermChange,
 		onEditProfile,
@@ -15,6 +16,7 @@
 		searchTerm: string;
 		userName: string;
 		theme: 'light' | 'dark';
+		searchPlaceholder?: string;
 		onToggleSidebar: () => void;
 		onSearchTermChange: (value: string) => void;
 		onEditProfile: () => void;
@@ -45,14 +47,13 @@
 		<span>?</span>
 		<input
 			value={searchTerm}
-			placeholder="Buscar aprendente ou agendamento..."
+			placeholder={searchPlaceholder}
 			oninput={(event) => onSearchTermChange((event.currentTarget as HTMLInputElement).value)}
 		/>
 	</label>
 
 	<!-- Area do usuario: notificacoes, avatar e acao de sair da sessao. -->
 	<div class="user-area">
-		<button type="button" class="bell-button" aria-label="Notificacoes">o</button>
 		<div class="user-avatar">{getInitials(userName)}</div>
 		<div class="profile-menu">
 			<button

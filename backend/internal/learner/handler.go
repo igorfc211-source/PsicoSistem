@@ -74,7 +74,7 @@ func (h *Handler) Get(c *gin.Context) {
 // Create cria um aprendente com o valor financeiro padrão da sessão.
 //
 // POST /v1/learners
-// Campo financeiro: session_price_cents pertence ao aprendente, não à assinatura.
+// Campos financeiros: session_price_cents e general_value_cents pertencem ao aprendente, não à assinatura.
 func (h *Handler) Create(c *gin.Context) {
 	var input CreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {

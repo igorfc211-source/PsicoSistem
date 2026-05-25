@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import type { Learner, VisitKind } from '$lib/modules/learners';
 	import LearnerAvatar from '$lib/modules/learners/components/avatar/LearnerAvatar.svelte';
 	import {
@@ -16,6 +18,7 @@
 		learners,
 		selectedLearnerId,
 		dayItems,
+		isComposerOpen,
 		onCreateSession,
 		onCreateEvent,
 		onOpenLearner,
@@ -27,6 +30,7 @@
 		learners: Learner[];
 		selectedLearnerId: string | null;
 		dayItems: ScheduleItem[];
+		isComposerOpen: boolean;
 		onCreateSession: (input: NewSessionAppointmentInput) => boolean;
 		onCreateEvent: (input: NewAgendaEventInput) => boolean;
 		onOpenLearner: (id: string) => void;
@@ -47,6 +51,8 @@
 	let eventStartTime = $state('11:00');
 	let eventEndTime = $state('12:00');
 	let eventDescription = $state('');
+	let confirmation = $state<{ id: number; text: string } | null>(null);
+	let confirmationTimer: ReturnType<typeof setTimeout> | null = null;
 
 	$effect(() => {
 		const preferredLearnerId = selectedLearnerId ?? learners[0]?.id ?? '';
@@ -91,6 +97,7 @@
 
 		if (created) {
 			sessionNotes = '';
+			showConfirmation('Sessao confirmada na agenda.');
 		}
 	}
 
@@ -109,8 +116,23 @@
 
 		if (created) {
 			eventDescription = '';
+			showConfirmation('Evento confirmado na agenda.');
 		}
 	}
+
+	function showConfirmation(text: string) {
+		if (confirmationTimer) clearTimeout(confirmationTimer);
+
+		confirmation = { id: Date.now(), text };
+		confirmationTimer = setTimeout(() => {
+			confirmation = null;
+			confirmationTimer = null;
+		}, 2200);
+	}
+
+	onDestroy(() => {
+		if (confirmationTimer) clearTimeout(confirmationTimer);
+	});
 </script>
 
 <section class="day-scheduler">
@@ -119,15 +141,23 @@
 		<div>
 			<span>Dia selecionado</span>
 			<h2>{selectedDateLabel}</h2>
-			<p>Data NBR 5892: {selectedDate}</p>
+			
 		</div>
 		<strong>{dayItems.length} compromisso{dayItems.length === 1 ? '' : 's'}</strong>
 	</div>
 
+	{#if confirmation}
+		{#key confirmation.id}
+			<div class="schedule-confirmation" transition:fly={{ y: -12, duration: 180 }}>
+				{confirmation.text}
+			</div>
+		{/key}
+	{/if}
+
 	<!-- Linha do tempo: agrupa sessoes de aprendentes e eventos livres do mesmo dia. -->
 	<div class="schedule-list" aria-label="Compromissos do dia">
-		{#each dayItems as item}
-			<article class={`schedule-card ${item.kind} ${item.tone}`}>
+		{#each dayItems as item (item.id)}
+			<article class={`schedule-card ${item.kind} ${item.tone}`} in:fly={{ x: 24, duration: 220 }}>
 				<!-- Coluna de horario: deixa claro o intervalo de cada compromisso. -->
 				<div class="schedule-time">
 					<strong>{item.startTime}</strong>
@@ -190,114 +220,118 @@
 		{/each}
 	</div>
 
-	<!-- Escolha do fluxo de cadastro: sessao vinculada a aprendente ou evento livre. -->
-	<div class="schedule-choice">
-		<span>O que gostaria de fazer nesse dia?</span>
-		<div>
-			<button
-				type="button"
-				class:active={actionMode === 'session'}
-				onclick={() => (actionMode = 'session')}
-			>
-				Agendar com aprendente
-			</button>
-			<button
-				type="button"
-				class:active={actionMode === 'event'}
-				onclick={() => (actionMode = 'event')}
-			>
-				Adicionar evento
-			</button>
+	{#if isComposerOpen}
+		<div class="scheduler-composer" transition:fly={{ y: 14, duration: 220 }}>
+			<!-- Escolha do fluxo de cadastro: sessao vinculada a aprendente ou evento livre. -->
+			<div class="schedule-choice">
+				<span>O que gostaria de fazer nesse dia?</span>
+				<div>
+					<button
+						type="button"
+						class:active={actionMode === 'session'}
+						onclick={() => (actionMode = 'session')}
+					>
+						Agendar com aprendente
+					</button>
+					<button
+						type="button"
+						class:active={actionMode === 'event'}
+						onclick={() => (actionMode = 'event')}
+					>
+						Adicionar evento
+					</button>
+				</div>
+			</div>
+
+			{#if actionMode === 'session'}
+				<!-- Formulario de sessao: cria um compromisso dentro do prontuario do aprendente. -->
+				<form class="schedule-form card" onsubmit={handleCreateSession} transition:fly={{ y: 12, duration: 170 }}>
+					<div class="form-grid">
+						<label>
+							<span>Aprendente</span>
+							<select bind:value={sessionLearnerId} required>
+								<option value="" disabled>Selecione o aprendente</option>
+								{#each learners as learner}
+									<option value={learner.id}>{learner.name}</option>
+								{/each}
+							</select>
+						</label>
+
+						<label>
+							<span>Tipo de visita</span>
+							<select value={sessionKind} onchange={handleVisitKindChange}>
+								{#each visitKindOptions as option}
+									<option value={option.value}>{option.label}</option>
+								{/each}
+							</select>
+						</label>
+
+						<label>
+							<span>Titulo do atendimento</span>
+							<input bind:value={sessionTitle} placeholder="Sessao individual" required />
+						</label>
+
+						<label>
+							<span>Inicio</span>
+							<input type="time" bind:value={sessionStartTime} required />
+						</label>
+
+						<label>
+							<span>Fim</span>
+							<input type="time" bind:value={sessionEndTime} required />
+						</label>
+
+						<label>
+							<span>Local / modalidade</span>
+							<input bind:value={sessionLocation} placeholder="Consultorio, online, escola..." />
+						</label>
+					</div>
+
+					<label>
+						<span>Observacoes para a sessao</span>
+						<textarea bind:value={sessionNotes} placeholder="Objetivo, combinados ou preparo necessario."></textarea>
+					</label>
+
+					<button type="submit" class="primary-button">Confirmar sessao</button>
+				</form>
+			{:else}
+				<!-- Formulario de evento livre: usado para reuniao, supervisao ou bloqueio de agenda. -->
+				<form class="schedule-form card" onsubmit={handleCreateEvent} transition:fly={{ y: 12, duration: 170 }}>
+					<div class="form-grid">
+						<label>
+							<span>Titulo do evento</span>
+							<input bind:value={eventTitle} required />
+						</label>
+
+						<label>
+							<span>Categoria</span>
+							<select bind:value={eventKind}>
+								<option value="meeting">Reuniao</option>
+								<option value="supervision">Supervisao</option>
+								<option value="block">Bloqueio de horario</option>
+								<option value="other">Outro evento</option>
+							</select>
+						</label>
+
+						<label>
+							<span>Inicio</span>
+							<input type="time" bind:value={eventStartTime} required />
+						</label>
+
+						<label>
+							<span>Fim</span>
+							<input type="time" bind:value={eventEndTime} required />
+						</label>
+					</div>
+
+					<label>
+						<span>Descricao</span>
+						<textarea bind:value={eventDescription} placeholder="Pauta, participantes ou contexto."></textarea>
+					</label>
+
+					<button type="submit" class="primary-button">Salvar evento</button>
+				</form>
+			{/if}
 		</div>
-	</div>
-
-	{#if actionMode === 'session'}
-		<!-- Formulario de sessao: cria um compromisso dentro do prontuario do aprendente. -->
-		<form class="schedule-form card" onsubmit={handleCreateSession}>
-			<div class="form-grid">
-				<label>
-					<span>Aprendente</span>
-					<select bind:value={sessionLearnerId} required>
-						<option value="" disabled>Selecione o aprendente</option>
-						{#each learners as learner}
-							<option value={learner.id}>{learner.name}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label>
-					<span>Tipo de visita</span>
-					<select value={sessionKind} onchange={handleVisitKindChange}>
-						{#each visitKindOptions as option}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
-				</label>
-
-				<label>
-					<span>Titulo do atendimento</span>
-					<input bind:value={sessionTitle} placeholder="Sessao individual" required />
-				</label>
-
-				<label>
-					<span>Inicio</span>
-					<input type="time" bind:value={sessionStartTime} required />
-				</label>
-
-				<label>
-					<span>Fim</span>
-					<input type="time" bind:value={sessionEndTime} required />
-				</label>
-
-				<label>
-					<span>Local / modalidade</span>
-					<input bind:value={sessionLocation} placeholder="Consultorio, online, escola..." />
-				</label>
-			</div>
-
-			<label>
-				<span>Observacoes para a sessao</span>
-				<textarea bind:value={sessionNotes} placeholder="Objetivo, combinados ou preparo necessario."></textarea>
-			</label>
-
-			<button type="submit" class="primary-button">Confirmar sessao</button>
-		</form>
-	{:else}
-		<!-- Formulario de evento livre: usado para reuniao, supervisao ou bloqueio de agenda. -->
-		<form class="schedule-form card" onsubmit={handleCreateEvent}>
-			<div class="form-grid">
-				<label>
-					<span>Titulo do evento</span>
-					<input bind:value={eventTitle} required />
-				</label>
-
-				<label>
-					<span>Categoria</span>
-					<select bind:value={eventKind}>
-						<option value="meeting">Reuniao</option>
-						<option value="supervision">Supervisao</option>
-						<option value="block">Bloqueio de horario</option>
-						<option value="other">Outro evento</option>
-					</select>
-				</label>
-
-				<label>
-					<span>Inicio</span>
-					<input type="time" bind:value={eventStartTime} required />
-				</label>
-
-				<label>
-					<span>Fim</span>
-					<input type="time" bind:value={eventEndTime} required />
-				</label>
-			</div>
-
-			<label>
-				<span>Descricao</span>
-				<textarea bind:value={eventDescription} placeholder="Pauta, participantes ou contexto."></textarea>
-			</label>
-
-			<button type="submit" class="primary-button">Salvar evento</button>
-		</form>
 	{/if}
 </section>

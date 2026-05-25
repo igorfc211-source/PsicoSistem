@@ -2,9 +2,16 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"html"
+	"net/url"
 	"strings"
 	"time"
 
+	sharedemail "api-on/internal/shared/email"
 	sharederrors "api-on/internal/shared/errors"
 	"api-on/internal/shared/permissions"
 	"api-on/internal/shared/security"
@@ -19,10 +26,14 @@ import (
 )
 
 type Usecase struct {
-	tenantRepo       tenant.Repository
-	subscriptionRepo subscription.Repository
-	userRepo         user.Repository
-	jwtSvc           *jwtpkg.JWTService
+	tenantRepo        tenant.Repository
+	subscriptionRepo  subscription.Repository
+	userRepo          user.Repository
+	passwordResetRepo PasswordResetRepository
+	jwtSvc            *jwtpkg.JWTService
+	emailSender       sharedemail.Sender
+	frontendURL       string
+	passwordResetTTL  time.Duration
 }
 
 func NewUsecase(
@@ -31,11 +42,48 @@ func NewUsecase(
 	userRepo user.Repository,
 	jwtSvc *jwtpkg.JWTService,
 ) *Usecase {
+	return NewUsecaseWithPasswordReset(
+		tenantRepo,
+		subscriptionRepo,
+		userRepo,
+		nil,
+		jwtSvc,
+		sharedemail.NoopSender{},
+		"http://localhost:3000",
+		30*time.Minute,
+	)
+}
+
+func NewUsecaseWithPasswordReset(
+	tenantRepo tenant.Repository,
+	subscriptionRepo subscription.Repository,
+	userRepo user.Repository,
+	passwordResetRepo PasswordResetRepository,
+	jwtSvc *jwtpkg.JWTService,
+	emailSender sharedemail.Sender,
+	frontendURL string,
+	passwordResetTTL time.Duration,
+) *Usecase {
+	if emailSender == nil {
+		emailSender = sharedemail.NoopSender{}
+	}
+	frontendURL = strings.TrimRight(strings.TrimSpace(frontendURL), "/")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	if passwordResetTTL <= 0 {
+		passwordResetTTL = 30 * time.Minute
+	}
+
 	return &Usecase{
-		tenantRepo:       tenantRepo,
-		subscriptionRepo: subscriptionRepo,
-		userRepo:         userRepo,
-		jwtSvc:           jwtSvc,
+		tenantRepo:        tenantRepo,
+		subscriptionRepo:  subscriptionRepo,
+		userRepo:          userRepo,
+		passwordResetRepo: passwordResetRepo,
+		jwtSvc:            jwtSvc,
+		emailSender:       emailSender,
+		frontendURL:       frontendURL,
+		passwordResetTTL:  passwordResetTTL,
 	}
 }
 
@@ -233,6 +281,98 @@ func (u *Usecase) Login(ctx context.Context, input LoginInput) (*AuthPayload, er
 	}, nil
 }
 
+func (u *Usecase) RequestPasswordReset(ctx context.Context, input ForgotPasswordInput) (*MessageResponse, error) {
+	if err := sharedvalidator.ValidateEmail(input.Email); err != nil {
+		return nil, err
+	}
+
+	response := passwordResetRequestedResponse()
+	if u.passwordResetRepo == nil {
+		return response, nil
+	}
+
+	userItem, err := u.userRepo.FindByEmail(ctx, input.Email)
+	if err != nil {
+		appErr := sharederrors.AsAppError(err)
+		if appErr != nil && appErr.Code == "USER_NOT_FOUND" {
+			return response, nil
+		}
+		return nil, err
+	}
+
+	if userItem.Status != user.StatusActive {
+		return response, nil
+	}
+
+	rawToken, err := newPasswordResetToken()
+	if err != nil {
+		return nil, sharederrors.Internal("could not generate password reset token")
+	}
+
+	now := time.Now()
+	resetToken := &PasswordResetToken{
+		ID:        uuid.New(),
+		TenantID:  userItem.TenantID,
+		UserID:    userItem.ID,
+		TokenHash: hashPasswordResetToken(rawToken),
+		ExpiresAt: now.Add(u.passwordResetTTL),
+		CreatedAt: now,
+	}
+
+	if err := u.passwordResetRepo.Create(ctx, resetToken); err != nil {
+		return nil, err
+	}
+
+	_ = u.emailSender.Send(ctx, sharedemail.Message{
+		To:       userItem.Email,
+		Subject:  "Recuperacao de senha do PsicoSistem",
+		TextBody: u.buildPasswordResetText(rawToken),
+		HTMLBody: u.buildPasswordResetHTML(rawToken),
+	})
+
+	return response, nil
+}
+
+func (u *Usecase) ResetPassword(ctx context.Context, input ResetPasswordInput) (*MessageResponse, error) {
+	token := strings.TrimSpace(input.Token)
+	if token == "" {
+		return nil, invalidPasswordResetToken()
+	}
+	if err := sharedvalidator.ValidatePassword(input.Password); err != nil {
+		return nil, err
+	}
+	if u.passwordResetRepo == nil {
+		return nil, invalidPasswordResetToken()
+	}
+
+	now := time.Now()
+	resetToken, err := u.passwordResetRepo.ConsumeValid(ctx, hashPasswordResetToken(token), now)
+	if err != nil {
+		return nil, err
+	}
+
+	userItem, err := u.userRepo.GetByIDAndTenant(ctx, resetToken.TenantID, resetToken.UserID)
+	if err != nil {
+		return nil, invalidPasswordResetToken()
+	}
+	if userItem.Status != user.StatusActive {
+		return nil, invalidPasswordResetToken()
+	}
+
+	passwordHash, err := hash.Generate(input.Password)
+	if err != nil {
+		return nil, sharederrors.Internal("could not hash password")
+	}
+
+	userItem.PasswordHash = passwordHash
+	userItem.UpdatedAt = now
+	if err := u.userRepo.Update(ctx, userItem); err != nil {
+		return nil, err
+	}
+
+	return &MessageResponse{Message: "Senha atualizada com sucesso."}, nil
+}
+
 func (u *Usecase) Refresh(ctx context.Context, actor security.Identity) (*AuthPayload, error) {
 	userItem, err := u.userRepo.GetByIDAndTenant(ctx, actor.TenantID, actor.UserID)
 	if err != nil {
@@ -264,6 +404,52 @@ func (u *Usecase) Refresh(ctx context.Context, actor security.Identity) (*AuthPa
 		Subscription: u.buildSubscriptionSummary(subscriptionItem, plan),
 		Token:        token,
 	}, nil
+}
+
+func passwordResetRequestedResponse() *MessageResponse {
+	return &MessageResponse{
+		Message: "Se o e-mail informado estiver cadastrado, enviaremos um link de recuperacao.",
+	}
+}
+
+func newPasswordResetToken() (string, error) {
+	buffer := make([]byte, 32)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buffer), nil
+}
+
+func hashPasswordResetToken(token string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
+	return hex.EncodeToString(sum[:])
+}
+
+func (u *Usecase) buildPasswordResetURL(token string) string {
+	resetURL, err := url.Parse(u.frontendURL + "/reset-password")
+	if err != nil {
+		return u.frontendURL + "/reset-password?token=" + url.QueryEscape(token)
+	}
+
+	query := resetURL.Query()
+	query.Set("token", token)
+	resetURL.RawQuery = query.Encode()
+	return resetURL.String()
+}
+
+func (u *Usecase) buildPasswordResetText(token string) string {
+	link := u.buildPasswordResetURL(token)
+	return "Recebemos uma solicitacao para redefinir sua senha no PsicoSistem.\n\n" +
+		"Acesse o link abaixo para criar uma nova senha:\n" + link + "\n\n" +
+		"Este link expira em " + u.passwordResetTTL.String() + ". Se voce nao solicitou, ignore este e-mail."
+}
+
+func (u *Usecase) buildPasswordResetHTML(token string) string {
+	link := html.EscapeString(u.buildPasswordResetURL(token))
+	return "<p>Recebemos uma solicitacao para redefinir sua senha no PsicoSistem.</p>" +
+		"<p><a href=\"" + link + "\">Criar nova senha</a></p>" +
+		"<p>Este link expira em " + html.EscapeString(u.passwordResetTTL.String()) + ".</p>" +
+		"<p>Se voce nao solicitou, ignore este e-mail.</p>"
 }
 
 func (u *Usecase) nextTenantSlug(ctx context.Context, clinicName string) (string, error) {

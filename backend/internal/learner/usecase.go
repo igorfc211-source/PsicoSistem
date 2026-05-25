@@ -17,12 +17,19 @@ import (
 type Usecase struct {
 	repo             Repository
 	subscriptionRepo subscription.Repository
+	guardianRepo     GuardianLinkRepository
 }
 
-func NewUsecase(repo Repository, subscriptionRepo subscription.Repository) *Usecase {
+type GuardianLinkRepository interface {
+	EnsureByIDs(ctx context.Context, tenantID uuid.UUID, guardianIDs []uuid.UUID) error
+	ReplaceLearnerGuardians(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID, guardianIDs []uuid.UUID) error
+}
+
+func NewUsecase(repo Repository, subscriptionRepo subscription.Repository, guardianRepo GuardianLinkRepository) *Usecase {
 	return &Usecase{
 		repo:             repo,
 		subscriptionRepo: subscriptionRepo,
+		guardianRepo:     guardianRepo,
 	}
 }
 
@@ -68,7 +75,17 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 	}
 
 	status := normalizeStatus(input.Status)
-	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents); err != nil {
+	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents, input.GeneralValueCents); err != nil {
+		return nil, err
+	}
+	guardianIDs, err := normalizeGuardianIDs(input.GuardianIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateGuardianIDs(guardianIDs); err != nil {
+		return nil, err
+	}
+	if err := u.guardianRepo.EnsureByIDs(ctx, actor.TenantID, guardianIDs); err != nil {
 		return nil, err
 	}
 	if status == StatusActive {
@@ -91,11 +108,16 @@ func (u *Usecase) Create(ctx context.Context, actor security.Identity, input Cre
 		EndDate:           strings.TrimSpace(input.EndDate),
 		VisitCount:        input.VisitCount,
 		SessionPriceCents: input.SessionPriceCents,
+		GeneralValueCents: input.GeneralValueCents,
+		GuardianIDs:       guardianIDs,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}
 
 	if err := u.repo.Create(ctx, item); err != nil {
+		return nil, err
+	}
+	if err := u.guardianRepo.ReplaceLearnerGuardians(ctx, actor.TenantID, item.ID, guardianIDs); err != nil {
 		return nil, err
 	}
 
@@ -108,7 +130,17 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, learnerID
 	}
 
 	status := normalizeStatus(input.Status)
-	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents); err != nil {
+	if err := validateLearnerInput(input.Name, status, input.VisitCount, input.SessionPriceCents, input.GeneralValueCents); err != nil {
+		return nil, err
+	}
+	guardianIDs, err := normalizeGuardianIDs(input.GuardianIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateGuardianIDs(guardianIDs); err != nil {
+		return nil, err
+	}
+	if err := u.guardianRepo.EnsureByIDs(ctx, actor.TenantID, guardianIDs); err != nil {
 		return nil, err
 	}
 
@@ -132,9 +164,14 @@ func (u *Usecase) Update(ctx context.Context, actor security.Identity, learnerID
 	item.EndDate = strings.TrimSpace(input.EndDate)
 	item.VisitCount = input.VisitCount
 	item.SessionPriceCents = input.SessionPriceCents
+	item.GeneralValueCents = input.GeneralValueCents
+	item.GuardianIDs = guardianIDs
 	item.UpdatedAt = time.Now()
 
 	if err := u.repo.Update(ctx, item); err != nil {
+		return nil, err
+	}
+	if err := u.guardianRepo.ReplaceLearnerGuardians(ctx, actor.TenantID, item.ID, guardianIDs); err != nil {
 		return nil, err
 	}
 
@@ -167,7 +204,7 @@ func (u *Usecase) ensurePatientCapacity(ctx context.Context, tenantID uuid.UUID)
 	return nil
 }
 
-func validateLearnerInput(name string, status string, visitCount int, sessionPriceCents int64) error {
+func validateLearnerInput(name string, status string, visitCount int, sessionPriceCents int64, generalValueCents int64) error {
 	if err := sharedvalidator.ValidateName(name); err != nil {
 		return err
 	}
@@ -179,6 +216,35 @@ func validateLearnerInput(name string, status string, visitCount int, sessionPri
 	}
 	if sessionPriceCents < 0 {
 		return sharederrors.Invalid("INVALID_SESSION_PRICE", "session_price_cents cannot be negative")
+	}
+	if generalValueCents < 0 {
+		return sharederrors.Invalid("INVALID_GENERAL_VALUE", "general_value_cents cannot be negative")
+	}
+
+	return nil
+}
+
+func normalizeGuardianIDs(input []uuid.UUID) ([]uuid.UUID, error) {
+	guardianIDs := make([]uuid.UUID, 0, len(input))
+	seen := make(map[uuid.UUID]struct{}, len(input))
+
+	for _, guardianID := range input {
+		if guardianID == uuid.Nil {
+			return nil, sharederrors.Invalid("INVALID_GUARDIAN_ID", "guardian_ids cannot contain empty ids")
+		}
+		if _, exists := seen[guardianID]; exists {
+			return nil, sharederrors.Invalid("INVALID_LEARNER_GUARDIANS", "guardian_ids cannot contain duplicates")
+		}
+		seen[guardianID] = struct{}{}
+		guardianIDs = append(guardianIDs, guardianID)
+	}
+
+	return guardianIDs, nil
+}
+
+func validateGuardianIDs(guardianIDs []uuid.UUID) error {
+	if len(guardianIDs) < 1 || len(guardianIDs) > 2 {
+		return sharederrors.Invalid("INVALID_LEARNER_GUARDIANS", "learner must have one or two guardians")
 	}
 
 	return nil

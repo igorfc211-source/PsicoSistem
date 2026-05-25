@@ -15,6 +15,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, item *Learner) error
 	GetByIDAndTenant(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) (*Learner, error)
+	ExistsByIDAndTenant(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) (bool, error)
 	ListByTenant(ctx context.Context, tenantID uuid.UUID, input ListInput) ([]Learner, int, error)
 	Update(ctx context.Context, item *Learner) error
 	Deactivate(ctx context.Context, tenantID uuid.UUID, learnerID uuid.UUID) error
@@ -45,7 +46,7 @@ func (r *JSONRepository) GetByIDAndTenant(_ context.Context, tenantID uuid.UUID,
 			return sharederrors.NotFound("LEARNER_NOT_FOUND", "learner not found")
 		}
 
-		item, err := fromRecord(record)
+		item, err := fromRecord(record, guardianIDsForLearner(state, tenantID.String(), learnerID.String()))
 		if err != nil {
 			return err
 		}
@@ -57,6 +58,21 @@ func (r *JSONRepository) GetByIDAndTenant(_ context.Context, tenantID uuid.UUID,
 	}
 
 	return result, nil
+}
+
+func (r *JSONRepository) ExistsByIDAndTenant(_ context.Context, tenantID uuid.UUID, learnerID uuid.UUID) (bool, error) {
+	exists := false
+
+	err := r.store.View(func(state database.State) error {
+		record, found := state.Learners[learnerID.String()]
+		exists = found && record.TenantID == tenantID.String()
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
 }
 
 func (r *JSONRepository) ListByTenant(_ context.Context, tenantID uuid.UUID, input ListInput) ([]Learner, int, error) {
@@ -83,7 +99,7 @@ func (r *JSONRepository) ListByTenant(_ context.Context, tenantID uuid.UUID, inp
 				}
 			}
 
-			item, err := fromRecord(record)
+			item, err := fromRecord(record, guardianIDsForLearner(state, tenantID.String(), record.ID))
 			if err != nil {
 				return err
 			}
@@ -171,12 +187,13 @@ func toRecord(item *Learner) database.LearnerRecord {
 		EndDate:           item.EndDate,
 		VisitCount:        item.VisitCount,
 		SessionPriceCents: item.SessionPriceCents,
+		GeneralValueCents: item.GeneralValueCents,
 		CreatedAt:         item.CreatedAt,
 		UpdatedAt:         item.UpdatedAt,
 	}
 }
 
-func fromRecord(record database.LearnerRecord) (*Learner, error) {
+func fromRecord(record database.LearnerRecord, guardianIDs []uuid.UUID) (*Learner, error) {
 	id, err := uuid.Parse(record.ID)
 	if err != nil {
 		return nil, sharederrors.Internal("invalid learner record id")
@@ -199,7 +216,30 @@ func fromRecord(record database.LearnerRecord) (*Learner, error) {
 		EndDate:           record.EndDate,
 		VisitCount:        record.VisitCount,
 		SessionPriceCents: record.SessionPriceCents,
+		GeneralValueCents: record.GeneralValueCents,
+		GuardianIDs:       guardianIDs,
 		CreatedAt:         record.CreatedAt,
 		UpdatedAt:         record.UpdatedAt,
 	}, nil
+}
+
+func guardianIDsForLearner(state database.State, tenantID string, learnerID string) []uuid.UUID {
+	guardianIDs := make([]uuid.UUID, 0)
+	for _, record := range state.LearnerGuardianLinks {
+		if record.TenantID != tenantID || record.LearnerID != learnerID {
+			continue
+		}
+
+		guardianID, err := uuid.Parse(record.GuardianID)
+		if err != nil {
+			continue
+		}
+		guardianIDs = append(guardianIDs, guardianID)
+	}
+
+	sort.Slice(guardianIDs, func(i, j int) bool {
+		return guardianIDs[i].String() < guardianIDs[j].String()
+	})
+
+	return guardianIDs
 }

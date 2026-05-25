@@ -3,6 +3,8 @@ package bootstrap
 import (
 	"context"
 
+	"api-on/internal/auth"
+	"api-on/internal/guardian"
 	"api-on/internal/learner"
 	"api-on/internal/shared/config"
 	"api-on/internal/shared/database"
@@ -12,11 +14,13 @@ import (
 )
 
 type Repositories struct {
-	TenantRepo       tenant.Repository
-	SubscriptionRepo subscription.Repository
-	UserRepo         user.Repository
-	LearnerRepo      learner.Repository
-	Close            func()
+	TenantRepo        tenant.Repository
+	SubscriptionRepo  subscription.Repository
+	UserRepo          user.Repository
+	PasswordResetRepo auth.PasswordResetRepository
+	LearnerRepo       learner.Repository
+	GuardianRepo      guardian.Repository
+	Close             func()
 }
 
 func BuildRepositories(ctx context.Context, cfg *config.Config) (*Repositories, error) {
@@ -28,11 +32,13 @@ func BuildRepositories(ctx context.Context, cfg *config.Config) (*Repositories, 
 		}
 
 		return &Repositories{
-			TenantRepo:       tenant.NewPostgresRepository(postgresDB.Pool),
-			SubscriptionRepo: subscription.NewPostgresRepository(postgresDB.Pool),
-			UserRepo:         user.NewPostgresRepository(postgresDB.Pool),
-			LearnerRepo:      learner.NewPostgresRepository(postgresDB.Pool),
-			Close:            postgresDB.Close,
+			TenantRepo:        tenant.NewPostgresRepository(postgresDB.Pool),
+			SubscriptionRepo:  subscription.NewPostgresRepository(postgresDB.Pool),
+			UserRepo:          user.NewPostgresRepository(postgresDB.Pool),
+			PasswordResetRepo: auth.NewPostgresPasswordResetRepository(postgresDB.Pool),
+			LearnerRepo:       learner.NewPostgresRepository(postgresDB.Pool),
+			GuardianRepo:      guardian.NewPostgresRepository(postgresDB.Pool),
+			Close:             postgresDB.Close,
 		}, nil
 	default:
 		store := database.NewStore(cfg.DataFile)
@@ -41,11 +47,13 @@ func BuildRepositories(ctx context.Context, cfg *config.Config) (*Repositories, 
 		}
 
 		return &Repositories{
-			TenantRepo:       tenant.NewRepository(store),
-			SubscriptionRepo: subscription.NewRepository(store),
-			UserRepo:         user.NewRepository(store),
-			LearnerRepo:      learner.NewRepository(store),
-			Close:            func() {},
+			TenantRepo:        tenant.NewRepository(store),
+			SubscriptionRepo:  subscription.NewRepository(store),
+			UserRepo:          user.NewRepository(store),
+			PasswordResetRepo: auth.NewPasswordResetRepository(store),
+			LearnerRepo:       learner.NewRepository(store),
+			GuardianRepo:      guardian.NewRepository(store),
+			Close:             func() {},
 		}, nil
 	}
 }

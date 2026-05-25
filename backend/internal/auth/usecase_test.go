@@ -2,10 +2,14 @@ package auth
 
 import (
 	"context"
+	"net/url"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"api-on/internal/shared/database"
+	sharedemail "api-on/internal/shared/email"
 	sharederrors "api-on/internal/shared/errors"
 	"api-on/internal/shared/permissions"
 	"api-on/internal/subscription"
@@ -13,6 +17,15 @@ import (
 	userdomain "api-on/internal/user"
 	jwtpkg "api-on/pkg/jwt"
 )
+
+type fakeEmailSender struct {
+	messages []sharedemail.Message
+}
+
+func (s *fakeEmailSender) Send(_ context.Context, message sharedemail.Message) error {
+	s.messages = append(s.messages, message)
+	return nil
+}
 
 func TestRegisterCreatesTenantOwnerAndSubscription(t *testing.T) {
 	t.Parallel()
@@ -160,4 +173,137 @@ func TestRegisterRejectsDuplicatePhone(t *testing.T) {
 	if appErr == nil || appErr.Code != "TENANT_PHONE_ALREADY_EXISTS" {
 		t.Fatalf("expected TENANT_PHONE_ALREADY_EXISTS, got %#v", appErr)
 	}
+}
+
+func TestPasswordResetSendsEmailAndChangesPassword(t *testing.T) {
+	t.Parallel()
+
+	store := database.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	if err := store.Initialize(); err != nil {
+		t.Fatalf("initialize store: %v", err)
+	}
+
+	tenantRepo := tenant.NewRepository(store)
+	subscriptionRepo := subscription.NewRepository(store)
+	userRepo := userdomain.NewRepository(store)
+	resetRepo := NewPasswordResetRepository(store)
+	emailSender := &fakeEmailSender{}
+	usecase := NewUsecaseWithPasswordReset(
+		tenantRepo,
+		subscriptionRepo,
+		userRepo,
+		resetRepo,
+		jwtpkg.NewJWTService("secret", "issuer"),
+		emailSender,
+		"http://localhost:3000",
+		30*time.Minute,
+	)
+
+	_, err := usecase.Register(context.Background(), RegisterInput{
+		ClinicName:              "Clinica Reset",
+		Name:                    "Reset Owner",
+		Email:                   "reset@clinica.com",
+		Password:                "1234@",
+		Phone:                   "11999991111",
+		CPFOrCNPJ:               "11444777000161",
+		PlanSlug:                "premium",
+		PaymentSessionConfirmed: true,
+	})
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	if _, err := usecase.RequestPasswordReset(context.Background(), ForgotPasswordInput{Email: "reset@clinica.com"}); err != nil {
+		t.Fatalf("request password reset: %v", err)
+	}
+	if len(emailSender.messages) != 1 {
+		t.Fatalf("expected one password reset email, got %d", len(emailSender.messages))
+	}
+
+	token := extractResetToken(t, emailSender.messages[0].TextBody)
+	if _, err := usecase.ResetPassword(context.Background(), ResetPasswordInput{
+		Token:    token,
+		Password: "nova@senha",
+	}); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+
+	if _, err := usecase.Login(context.Background(), LoginInput{Email: "reset@clinica.com", Password: "1234@"}); err == nil {
+		t.Fatalf("expected old password to stop working")
+	}
+	if _, err := usecase.Login(context.Background(), LoginInput{Email: "reset@clinica.com", Password: "nova@senha"}); err != nil {
+		t.Fatalf("expected new password to work: %v", err)
+	}
+
+	_, err = usecase.ResetPassword(context.Background(), ResetPasswordInput{
+		Token:    token,
+		Password: "outra@senha",
+	})
+	if err == nil {
+		t.Fatalf("expected consumed token to be rejected")
+	}
+	appErr := sharederrors.AsAppError(err)
+	if appErr == nil || appErr.Code != "INVALID_PASSWORD_RESET_TOKEN" {
+		t.Fatalf("expected INVALID_PASSWORD_RESET_TOKEN, got %#v", appErr)
+	}
+}
+
+func TestPasswordResetDoesNotRevealUnknownEmail(t *testing.T) {
+	t.Parallel()
+
+	store := database.NewStore(filepath.Join(t.TempDir(), "state.json"))
+	if err := store.Initialize(); err != nil {
+		t.Fatalf("initialize store: %v", err)
+	}
+
+	tenantRepo := tenant.NewRepository(store)
+	subscriptionRepo := subscription.NewRepository(store)
+	userRepo := userdomain.NewRepository(store)
+	resetRepo := NewPasswordResetRepository(store)
+	emailSender := &fakeEmailSender{}
+	usecase := NewUsecaseWithPasswordReset(
+		tenantRepo,
+		subscriptionRepo,
+		userRepo,
+		resetRepo,
+		jwtpkg.NewJWTService("secret", "issuer"),
+		emailSender,
+		"http://localhost:3000",
+		30*time.Minute,
+	)
+
+	result, err := usecase.RequestPasswordReset(context.Background(), ForgotPasswordInput{Email: "ausente@clinica.com"})
+	if err != nil {
+		t.Fatalf("request unknown password reset: %v", err)
+	}
+	if result == nil || result.Message == "" {
+		t.Fatalf("expected generic success response")
+	}
+	if len(emailSender.messages) != 0 {
+		t.Fatalf("expected no email for unknown account")
+	}
+}
+
+func extractResetToken(t *testing.T, body string) string {
+	t.Helper()
+
+	for _, line := range strings.Split(body, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.Contains(line, "/reset-password?") {
+			continue
+		}
+
+		parsed, err := url.Parse(line)
+		if err != nil {
+			t.Fatalf("parse reset url: %v", err)
+		}
+		token := parsed.Query().Get("token")
+		if token == "" {
+			t.Fatalf("reset url does not include token")
+		}
+		return token
+	}
+
+	t.Fatalf("reset email does not include reset url: %s", body)
+	return ""
 }

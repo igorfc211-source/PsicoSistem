@@ -47,10 +47,13 @@ Base de backend em Go para o SaaS de psicopedagogia, organizada por domínio e p
 
 - `POST /v1/auth/register`
 - `POST /v1/auth/login`
+- `POST /v1/auth/forgot-password`
+- `POST /v1/auth/reset-password`
 - `POST /v1/auth/refresh`
 - `GET /v1/tenant/me`
 - `GET /v1/tenant/subscription`
 - `GET /v1/permissions/me`
+- `GET /v1/account/me`
 - `GET /v1/users/me`
 - `GET /v1/users`
 - `POST /v1/users`
@@ -78,6 +81,15 @@ JWT_SECRET=troque-este-segredo
 PORT=8080
 JWT_ISSUER=psicosistem-backend
 APP_ENV=development
+FRONTEND_URL=http://localhost:3000
+PASSWORD_RESET_TTL_MINUTES=30
+
+# SMTP para recuperacao de senha
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_FROM=
 
 # Persistencia
 STORAGE_DRIVER=json

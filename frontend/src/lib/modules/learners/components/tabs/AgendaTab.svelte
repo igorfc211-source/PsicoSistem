@@ -11,7 +11,8 @@
 		onShiftMonth,
 		onSelectCalendarDate,
 		onUpdateVisit,
-		onRemoveVisit
+		onRemoveVisit,
+		onOpenAgendaWorkspace
 	} = $props<{
 		calendarDays: CalendarDay[];
 		monthLabel: string;
@@ -21,6 +22,7 @@
 		onSelectCalendarDate: (date: string) => void;
 		onUpdateVisit: (visitId: string, patch: Partial<Visit>) => void;
 		onRemoveVisit: (visitId: string) => void;
+		onOpenAgendaWorkspace: () => void;
 	}>();
 </script>
 
@@ -39,5 +41,7 @@
 		visit={selectedVisit}
 		onUpdateVisit={onUpdateVisit}
 		onRemoveVisit={onRemoveVisit}
+		onOpenAgendaWorkspace={onOpenAgendaWorkspace}
 	/>
+	
 </section>

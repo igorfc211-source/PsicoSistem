@@ -27,6 +27,8 @@ func NewUsecase(repo Repository, subscriptionRepo subscription.Repository) *Usec
 	}
 }
 
+// GetMe retorna a conta autenticada apenas pela identidade resolvida do JWT.
+// A rota nao aceita userID externo para evitar IDOR/BOLA entre contas e clinicas.
 func (u *Usecase) GetMe(ctx context.Context, actor security.Identity) (*Response, error) {
 	item, err := u.repo.GetByIDAndTenant(ctx, actor.TenantID, actor.UserID)
 	if err != nil {

@@ -4,9 +4,10 @@ import type { RequestHandler } from './$types';
 const BACKEND_BASE_URL = 'http://localhost:8080';
 const BACKEND_PREFIXES = ['/v1', ''] as const;
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
 
-const isAllowedMode = (mode: string): mode is AuthMode => mode === 'login' || mode === 'register';
+const isAllowedMode = (mode: string): mode is AuthMode =>
+	mode === 'login' || mode === 'register' || mode === 'forgot-password' || mode === 'reset-password';
 
 export const POST: RequestHandler = async ({ params, request, fetch }) => {
 	if (!isAllowedMode(params.mode)) {

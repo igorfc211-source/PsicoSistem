@@ -23,6 +23,19 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
+type ForgotPasswordInput struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordInput struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
 type AuthPayload struct {
 	Tenant       *tenant.Response              `json:"tenant"`
 	User         *user.Response                `json:"user"`

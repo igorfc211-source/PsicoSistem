@@ -1,4 +1,4 @@
-import type { ActionPlan, Learner, NewLearnerInput, Visit } from './types';
+import type { ActionPlan, Learner, LearnerGuardian, NewLearnerInput, Visit } from './types';
 
 // Gera ids previsiveis por dominio, mantendo unicidade para aprendentes, visitas e documentos.
 export function createId(prefix: string) {
@@ -32,31 +32,39 @@ export function createDefaultLearnerInput(): NewLearnerInput {
 		photoUrl: '',
 		gender: '',
 		guardian: '',
+		guardianRelationship: '',
+		guardians: [createEmptyLearnerGuardianInput(), createEmptyLearnerGuardianInput()],
 		age: '',
 		status: 'active',
 		startDate: toDateInputValue(today),
 		endDate: toDateInputValue(nextMonth),
 		visitCount: 8,
-		sessionPriceCents: 0
+		sessionPriceCents: 0,
+		generalValueCents: 0
 	};
 }
 
 // Fabrica a entidade completa do aprendente a partir do formulario da interface.
 export function createLearner(input: NewLearnerInput): Learner {
 	const now = new Date().toISOString();
+	const guardians = normalizeLearnerGuardians(input);
+	const primaryGuardian = guardians[0] ?? null;
 
 	return {
 		id: createId('learner'),
 		name: input.name.trim(),
 		photoUrl: input.photoUrl,
 		gender: input.gender.trim(),
-		guardian: input.guardian.trim(),
+		guardian: primaryGuardian?.name ?? input.guardian.trim(),
+		guardianRelationship: primaryGuardian?.relationship ?? input.guardianRelationship.trim(),
+		guardians,
 		age: input.age.trim(),
 		status: input.status,
 		startDate: input.startDate,
 		endDate: input.endDate,
 		visitCount: input.visitCount,
 		sessionPriceCents: normalizeAmountCents(input.sessionPriceCents),
+		generalValueCents: normalizeAmountCents(input.generalValueCents),
 		anamnese: '',
 		anamneseDocuments: [],
 		actionPlan: createEmptyActionPlan(),
@@ -65,6 +73,15 @@ export function createLearner(input: NewLearnerInput): Learner {
 		reports: [],
 		createdAt: now,
 		updatedAt: now
+	};
+}
+
+export function createEmptyLearnerGuardianInput() {
+	return {
+		sourceKey: '',
+		name: '',
+		relationship: '',
+		phone: ''
 	};
 }
 
@@ -80,6 +97,49 @@ export function toDateInputValue(date: Date) {
 function normalizeAmountCents(value: number) {
 	if (!Number.isFinite(value)) return 0;
 	return Math.max(0, Math.round(value));
+}
+
+function normalizeLearnerGuardians(input: NewLearnerInput): LearnerGuardian[] {
+	const inputGuardians =
+		input.guardians?.length > 0
+			? input.guardians
+			: [
+					{
+						sourceKey: '',
+						name: input.guardian,
+						relationship: input.guardianRelationship,
+						phone: ''
+					}
+				];
+	const seenKeys = new Set<string>();
+
+	return inputGuardians
+		.map((guardian) => {
+			const name = guardian.name.trim();
+			const sourceKey = guardian.sourceKey || normalizeGuardianKey(name);
+
+			return {
+				id: createId('learner-guardian'),
+				sourceKey,
+				name,
+				relationship: guardian.relationship.trim(),
+				phone: normalizePhone(guardian.phone)
+			};
+		})
+		.filter((guardian) => {
+			if (!guardian.name || !guardian.sourceKey || seenKeys.has(guardian.sourceKey)) return false;
+			seenKeys.add(guardian.sourceKey);
+			return true;
+		})
+		.slice(0, 2);
+}
+
+function normalizePhone(value: string) {
+	return value.replace(/\D/g, '').slice(0, 11);
+}
+
+function normalizeGuardianKey(value: string) {
+	return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 // Sugere horarios comerciais variados para a agenda inicial nao ficar toda no mesmo horario.
