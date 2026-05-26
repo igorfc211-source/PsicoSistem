@@ -148,7 +148,7 @@ Login
 <img width="1738" height="512" alt="Screenshot_16" src="https://github.com/user-attachments/assets/be3edadc-db85-4ae7-b88a-3f83086984cd" />
 
 ## Arquitetura do Projeto
-
+```txt
 backend/
 
  ├── cmd/
@@ -183,7 +183,7 @@ frontend/
  │    │    └── utils/
  │
  └── static/
- 
+ ```
 ## Recursos Técnicos
 
 Arquitetura SaaS
