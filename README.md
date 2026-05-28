@@ -4,6 +4,8 @@ Sistema SaaS para clínicas de psicopedagogia desenvolvido com foco em organiza�
 
 O projeto foi criado para oferecer uma interface objetiva e intuitiva para profissionais que não possuem familiaridade com sistemas complexos como CRMs ou ERPs tradicionais.
 
+com ajuda da Doutora Clarissa Shishido + William Shishido
+
 # Visão Geral
 
 O PsiSistem centraliza:
